@@ -1,0 +1,11 @@
+[package]
+name         = "esp-idf-part"
+version      = "0.1.0"
+edition      = "2021"
+rust-version = "1.60.0"
+
+[dependencies]
+parse_int   = "0.6.0"
+regex       = "1.6.0"
+serde       = { version = "1.0.144", features = ["derive"] }
+serde_plain = "1.0.0"
