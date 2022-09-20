@@ -4,8 +4,8 @@ use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
 /// Partition type
-/// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
     App,
@@ -27,8 +27,8 @@ impl Display for Type {
 }
 
 /// Partition sub-type
-/// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
-#[derive(Debug, Clone, Deserialize, Serialize)]
+// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum SubType {
     App(AppType),
@@ -53,7 +53,7 @@ impl Display for SubType {
 
 /// Partition sub-types which can be used with App partitions
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AppType {
     Factory = 0x00,
@@ -77,7 +77,7 @@ pub enum AppType {
 }
 
 /// Partition sub-types which can be used with Data partitions
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DataType {
     Ota       = 0x00,
@@ -93,7 +93,7 @@ pub enum DataType {
 }
 
 /// Partition flags
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Flags {
     Encrypted = 0x01,
@@ -131,6 +131,36 @@ impl Partition {
             size,
             flags,
         }
+    }
+
+    /// Return the partition's name
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    /// Return the partition's [Type]
+    pub fn ty(&self) -> Type {
+        self.ty
+    }
+
+    /// Return the partition's [SubType]
+    pub fn subtype(&self) -> SubType {
+        self.subtype
+    }
+
+    /// Return the partition's offset
+    pub fn offset(&self) -> u32 {
+        self.offset.unwrap_or_default()
+    }
+
+    /// Return the partition's size
+    pub fn size(&self) -> u32 {
+        self.size
+    }
+
+    /// Return the partition's [Flags]
+    pub fn flags(&self) -> Option<Flags> {
+        self.flags
     }
 }
 
