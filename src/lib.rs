@@ -66,12 +66,57 @@ impl PartitionTable {
     where
         S: Into<String>,
     {
-        todo!()
+        let data = data.into();
+        let mut reader = csv::ReaderBuilder::new()
+            .comment(Some(b'#'))
+            .has_headers(false)
+            .trim(csv::Trim::All)
+            .from_reader(data.as_bytes());
+
+        let capacity = data.lines().count();
+        let mut partitions = Vec::with_capacity(capacity);
+
+        // Default offset is 0x8000 in ESP-IDF, partition table size is 0x1000
+        let mut offset = 0x9000;
+
+        for record in reader.deserialize() {
+            // Since offsets are optional, we need to update the deserialized partition when
+            // this field is omitted
+            let mut partition: Partition = record?;
+            offset = partition.fix_offset(offset);
+
+            partitions.push(partition);
+        }
+
+        Ok(Self::new(partitions))
     }
 
     /// Return a reference to a vector containing each partition in the
     /// partition table
     pub fn partitions(&self) -> &Vec<Partition> {
         &self.partitions
+    }
+
+    pub fn to_csv(&self) -> Result<String, Error> {
+        let mut csv = String::new();
+
+        // We will use the same common "header" that is used in ESP-IDF
+        csv.push_str("# ESP-IDF Partition Table\n");
+        csv.push_str("# Name,Type,SubType,Offset,Size,Flags\n");
+
+        // Serialize each partition using a [csv::Writer]
+        let mut writer = csv::WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(vec![]);
+
+        for partition in &self.partitions {
+            partition.write_csv(&mut writer)?;
+        }
+
+        // Append the serialized partitions to the header text, leaving us with our
+        // completed CSV text
+        csv.push_str(&String::from_utf8_lossy(&writer.into_inner().unwrap()));
+
+        Ok(csv)
     }
 }

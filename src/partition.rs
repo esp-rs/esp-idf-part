@@ -1,4 +1,5 @@
 use core::fmt::Display;
+use std::io::Write;
 
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
@@ -161,6 +162,50 @@ impl Partition {
     /// Return the partition's [Flags]
     pub fn flags(&self) -> Option<Flags> {
         self.flags
+    }
+
+    /// Ensure that the `offset` field is set (and is correctly set)
+    pub fn fix_offset(&mut self, offset: u32) -> u32 {
+        const PARTITION_ALIGNMENT: u32 = 0x10000;
+
+        if self.offset.is_none() {
+            let alignment = if self.ty == Type::App {
+                PARTITION_ALIGNMENT
+            } else {
+                4 // 4 bytes, 32 bits
+            };
+
+            let offset = if offset % alignment != 0 {
+                offset + alignment - (offset % alignment)
+            } else {
+                offset
+            };
+
+            self.offset = Some(offset);
+        }
+
+        self.offset.unwrap() + self.size
+    }
+
+    /// Write a record to the provided CSV writer
+    pub fn write_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        csv.write_record(&[
+            self.name.clone(),
+            self.ty.to_string(),
+            self.subtype.to_string(),
+            self.offset
+                .map(|offset| format!("{:#x}", offset))
+                .unwrap_or_default(),
+            format!("{:#x}", self.size),
+            self.flags
+                .map(|f| format!("{:#x}", f as u8))
+                .unwrap_or_default(),
+        ])?;
+
+        Ok(())
     }
 }
 
