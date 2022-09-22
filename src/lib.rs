@@ -25,7 +25,7 @@ const PARTITION_SIZE: usize = 32;
 const PARTITION_TABLE_SIZE: usize = 0x1000;
 
 /// A partition table
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartitionTable {
     partitions: Vec<Partition>,
 }
