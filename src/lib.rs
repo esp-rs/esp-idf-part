@@ -145,6 +145,23 @@ impl PartitionTable {
         &self.partitions
     }
 
+    /// Find a partition with the given name in the partition table
+    pub fn find(&self, name: &str) -> Option<&Partition> {
+        self.partitions.iter().find(|p| p.name() == name)
+    }
+
+    /// Find a partition with the given type in the partition table
+    pub fn find_by_type(&self, ty: Type) -> Option<&Partition> {
+        self.partitions.iter().find(|p| p.ty() == ty)
+    }
+
+    /// Find a partition with the given type and subtype in the partition table
+    pub fn find_by_subtype(&self, ty: Type, subtype: SubType) -> Option<&Partition> {
+        self.partitions
+            .iter()
+            .find(|p| p.ty() == ty && p.subtype() == subtype)
+    }
+
     pub fn to_bin(&self) -> Result<Vec<u8>, Error> {
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
         let mut hasher = HashWriter::new(&mut result);
@@ -224,5 +241,52 @@ where
 
     fn compute(self) -> (W, Digest) {
         (self.inner, self.hasher.compute())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::*;
+
+    #[test]
+    fn test_find() {
+        let csv = fs::read_to_string("tests/data/single_factory_no_ota.csv").unwrap();
+        let table = PartitionTable::try_from(csv).unwrap();
+
+        assert!(table.find("nvs").is_some());
+        assert!(table.find("phy_init").is_some());
+        assert!(table.find("factory").is_some());
+
+        assert!(table.find("foo").is_none());
+    }
+
+    #[test]
+    fn test_find_by_type() {
+        let csv = fs::read_to_string("tests/data/single_factory_no_ota.csv").unwrap();
+        let table = PartitionTable::try_from(csv).unwrap();
+
+        assert!(table.find_by_type(Type::App).is_some());
+        assert!(table.find_by_type(Type::Data).is_some());
+
+        assert!(table.find_by_type(Type::Custom(0x40)).is_none());
+    }
+
+    #[test]
+    fn test_find_by_subtype() {
+        let csv = fs::read_to_string("tests/data/single_factory_no_ota.csv").unwrap();
+        let table = PartitionTable::try_from(csv).unwrap();
+
+        assert!(table
+            .find_by_subtype(Type::App, SubType::App(AppType::Factory))
+            .is_some());
+        assert!(table
+            .find_by_subtype(Type::Data, SubType::Data(DataType::Nvs))
+            .is_some());
+
+        assert!(table
+            .find_by_subtype(Type::Custom(0x40), SubType::Custom(0x40))
+            .is_none());
     }
 }
