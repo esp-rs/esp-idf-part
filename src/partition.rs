@@ -1,16 +1,29 @@
 use core::fmt::Display;
-use std::io::Write;
+use std::{
+    cmp::{max, min},
+    io::Write,
+};
 
+use deku::{DekuContainerRead, DekuEnumExt, DekuError, DekuRead};
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use strum::FromRepr;
+
+const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
+const MAX_NAME_LEN: usize = 16;
+const PARTITION_ALIGNMENT: u32 = 0x10000;
 
 /// Partition type
-// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, FromRepr, Serialize)]
+#[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
+    #[deku(id = "0x00")]
     App,
+    #[deku(id = "0x01")]
     Data,
+    #[deku(id_pat = "0x02..=0xFE")]
     Custom(u8),
 }
 
@@ -19,7 +32,7 @@ impl Display for Type {
         write!(
             f,
             "{}",
-            match *self {
+            match self {
                 Type::App | Type::Data => serde_plain::to_string(self).unwrap(),
                 Type::Custom(ty) => format!("{:#04x}", ty),
             }
@@ -27,14 +40,24 @@ impl Display for Type {
     }
 }
 
-/// Partition sub-type
+impl Type {
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            Type::App => 0x00,
+            Type::Data => 0x01,
+            Type::Custom(ty) => *ty,
+        }
+    }
+}
+
+/// Partition subtype
 // <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum SubType {
     App(AppType),
     Data(DataType),
-    #[serde(deserialize_with = "deserialize_custom_partition_sub_type")]
+    #[serde(deserialize_with = "deserialize_custom_partition_subtype")]
     Custom(u8),
 }
 
@@ -52,9 +75,38 @@ impl Display for SubType {
     }
 }
 
+impl From<AppType> for SubType {
+    fn from(ty: AppType) -> Self {
+        SubType::App(ty)
+    }
+}
+
+impl From<DataType> for SubType {
+    fn from(ty: DataType) -> Self {
+        SubType::Data(ty)
+    }
+}
+
+impl From<u8> for SubType {
+    fn from(ty: u8) -> Self {
+        SubType::Custom(ty)
+    }
+}
+
+impl SubType {
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            SubType::App(ty) => *ty as u8,
+            SubType::Data(ty) => *ty as u8,
+            SubType::Custom(ty) => *ty,
+        }
+    }
+}
+
 /// Partition sub-types which can be used with App partitions
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, FromRepr, Serialize)]
+#[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "snake_case")]
 pub enum AppType {
     Factory = 0x00,
@@ -78,7 +130,8 @@ pub enum AppType {
 }
 
 /// Partition sub-types which can be used with Data partitions
-#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, FromRepr, Serialize)]
+#[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "snake_case")]
 pub enum DataType {
     Ota       = 0x00,
@@ -93,16 +146,19 @@ pub enum DataType {
     Spiffs    = 0x82,
 }
 
-/// Partition flags
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Flags {
-    Encrypted = 0x01,
+#[derive(Debug, DekuRead)]
+#[deku(endian = "little", magic = b"\xAA\x50")]
+pub(crate) struct DeserializedBinPartition {
+    ty: u8,
+    subtype: u8,
+    offset: Option<u32>,
+    size: u32,
+    name: [u8; MAX_NAME_LEN + 1], // Extra byte for the NULL terminator!
+    encrypted: bool,
 }
 
-/// A partition
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Partition {
+#[derive(Debug, Deserialize)]
+pub(crate) struct DeserializedCsvPartition {
     #[serde(deserialize_with = "deserialize_partition_name")]
     name: String,
     #[serde(deserialize_with = "deserialize_partition_type")]
@@ -112,17 +168,52 @@ pub struct Partition {
     offset: Option<u32>,
     #[serde(deserialize_with = "deserialize_partition_size")]
     size: u32,
-    flags: Option<Flags>,
+    #[serde(deserialize_with = "deserialize_partition_flags")]
+    encrypted: bool,
+}
+
+impl DeserializedCsvPartition {
+    /// Ensure that the `offset` field is set (and is correctly aligned)
+    pub(crate) fn fix_offset(&mut self, offset: u32) -> u32 {
+        if self.offset.is_none() {
+            let alignment = if self.ty == Type::App {
+                PARTITION_ALIGNMENT
+            } else {
+                4 // 4 bytes, 32 bits
+            };
+
+            let offset = if offset % alignment != 0 {
+                offset + alignment - (offset % alignment)
+            } else {
+                offset
+            };
+
+            self.offset = Some(offset);
+        }
+
+        self.offset.unwrap() + self.size
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Partition {
+    name: String,
+    ty: Type,
+    subtype: SubType,
+    offset: u32,
+    size: u32,
+    encrypted: bool,
 }
 
 impl Partition {
+    /// Construct a new partition
     pub fn new(
         name: String,
         ty: Type,
         subtype: SubType,
-        offset: Option<u32>,
+        offset: u32,
         size: u32,
-        flags: Option<Flags>,
+        encrypted: bool,
     ) -> Self {
         Self {
             name,
@@ -130,7 +221,7 @@ impl Partition {
             subtype,
             offset,
             size,
-            flags,
+            encrypted,
         }
     }
 
@@ -151,7 +242,7 @@ impl Partition {
 
     /// Return the partition's offset
     pub fn offset(&self) -> u32 {
-        self.offset.unwrap_or_default()
+        self.offset
     }
 
     /// Return the partition's size
@@ -159,32 +250,35 @@ impl Partition {
         self.size
     }
 
-    /// Return the partition's [Flags]
-    pub fn flags(&self) -> Option<Flags> {
-        self.flags
+    /// Is the partition encrypted?
+    pub fn encrypted(&self) -> bool {
+        self.encrypted
     }
 
-    /// Ensure that the `offset` field is set (and is correctly set)
-    pub fn fix_offset(&mut self, offset: u32) -> u32 {
-        const PARTITION_ALIGNMENT: u32 = 0x10000;
+    /// Does this partition overlap with another?
+    pub fn overlaps(&self, other: &Partition) -> bool {
+        max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
+    }
 
-        if self.offset.is_none() {
-            let alignment = if self.ty == Type::App {
-                PARTITION_ALIGNMENT
-            } else {
-                4 // 4 bytes, 32 bits
-            };
+    /// Write a record to the provided binary writer
+    pub fn write_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
+    where
+        W: Write,
+    {
+        writer.write_all(&MAGIC_BYTES)?;
+        writer.write_all(&[self.ty.as_u8(), self.subtype.as_u8()])?;
+        writer.write_all(&self.offset.to_le_bytes())?;
+        writer.write_all(&self.size.to_le_bytes())?;
 
-            let offset = if offset % alignment != 0 {
-                offset + alignment - (offset % alignment)
-            } else {
-                offset
-            };
-
-            self.offset = Some(offset);
+        let mut name_bytes = [0u8; 16];
+        for (source, dest) in self.name.bytes().zip(name_bytes.iter_mut()) {
+            *dest = source;
         }
+        writer.write_all(&name_bytes)?;
 
-        self.offset.unwrap() + self.size
+        writer.write_all(&(self.encrypted as u32).to_le_bytes())?;
+
+        Ok(())
     }
 
     /// Write a record to the provided CSV writer
@@ -192,20 +286,58 @@ impl Partition {
     where
         W: Write,
     {
+        let flags = if self.encrypted { "encrypted" } else { "" };
+
         csv.write_record(&[
-            self.name.clone(),
+            self.name(),
             self.ty.to_string(),
             self.subtype.to_string(),
-            self.offset
-                .map(|offset| format!("{:#x}", offset))
-                .unwrap_or_default(),
+            format!("{:#x}", self.offset),
             format!("{:#x}", self.size),
-            self.flags
-                .map(|f| format!("{:#x}", f as u8))
-                .unwrap_or_default(),
+            flags.to_string(),
         ])?;
 
         Ok(())
+    }
+}
+
+impl From<DeserializedBinPartition> for Partition {
+    fn from(part: DeserializedBinPartition) -> Self {
+        assert!(part.offset.is_some());
+
+        let ty = Type::from_repr(part.ty.into()).unwrap();
+        let subtype = match ty {
+            Type::App => SubType::from(AppType::from_repr(part.subtype.into()).unwrap()),
+            Type::Data => SubType::from(DataType::from_repr(part.subtype.into()).unwrap()),
+            Type::Custom(..) => SubType::from(part.subtype),
+        };
+
+        Self {
+            name: String::from_utf8_lossy(&part.name)
+                .to_string()
+                .trim_matches(char::from(0))
+                .to_string(),
+            ty,
+            subtype,
+            offset: part.offset.unwrap(),
+            size: part.size,
+            encrypted: part.encrypted,
+        }
+    }
+}
+
+impl From<DeserializedCsvPartition> for Partition {
+    fn from(part: DeserializedCsvPartition) -> Self {
+        assert!(part.offset.is_some());
+
+        Self {
+            name: part.name.trim_matches(char::from(0)).to_string(),
+            ty: part.ty,
+            subtype: part.subtype,
+            offset: part.offset.unwrap(),
+            size: part.size,
+            encrypted: part.encrypted,
+        }
     }
 }
 
@@ -213,20 +345,20 @@ fn deserialize_partition_name<'de, D>(deserializer: D) -> Result<String, D::Erro
 where
     D: Deserializer<'de>,
 {
-    // Partition names longer than 16 bytes are truncated; this limitation
-    // *includes* the terminating NULL byte, so we will truncate to 15 bytes
-    // instead.
-    //
-    // <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#name-field>
-    const MAX_LENGTH: usize = 15;
-
     let buf = String::deserialize(deserializer)?;
 
-    if let Some((idx, _)) = buf.as_str().char_indices().nth(MAX_LENGTH) {
-        Ok(String::from(&buf[..idx]))
+    let bytes = if let Some((idx, _)) = buf.as_str().char_indices().nth(MAX_NAME_LEN) {
+        buf[..idx].as_bytes()
     } else {
-        Ok(buf)
+        buf.as_bytes()
+    };
+
+    let mut name_bytes = [0u8; MAX_NAME_LEN + 1]; // Extra byte for the NULL terminator!
+    for (source, dest) in bytes.iter().zip(name_bytes.iter_mut()) {
+        *dest = *source;
     }
+
+    Ok(String::from_utf8_lossy(&name_bytes).to_string())
 }
 
 fn deserialize_partition_type<'de, D>(deserializer: D) -> Result<Type, D::Error>
@@ -242,14 +374,14 @@ where
         Ok(Type::App)
     } else if buf == "data" || maybe_parsed == Ok(0x01) {
         Ok(Type::Data)
-    } else if let Ok(integer) = maybe_parsed {
-        Ok(Type::Custom(integer))
+    } else if let Ok(ty) = maybe_parsed {
+        Ok(Type::Custom(ty))
     } else {
         Err(Error::custom("invalid partition type"))
     }
 }
 
-fn deserialize_custom_partition_sub_type<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_custom_partition_subtype<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -271,6 +403,15 @@ where
 {
     deserialize_partition_offset_or_size(deserializer)?
         .ok_or_else(|| Error::custom("invalid partition size/offset format"))
+}
+
+fn deserialize_partition_flags<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf = String::deserialize(deserializer)?;
+
+    Ok(buf.trim_matches(char::from(0)) == "encrypted")
 }
 
 fn deserialize_partition_offset_or_size<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -315,15 +456,15 @@ mod tests {
         let deserializer: StrDeserializer<ValueError> = "factory".into_deserializer();
         assert_eq!(
             deserialize_partition_name(deserializer),
-            Ok(String::from("factory"))
+            Ok(String::from("factory\0\0\0\0\0\0\0\0\0\0"))
         );
 
         // Make sure long names are truncated!
         let deserializer: StrDeserializer<ValueError> =
             "areallylongpartitionname".into_deserializer();
         let result = deserialize_partition_name(deserializer);
-        assert_eq!(result, Ok(String::from("areallylongpart")));
-        assert_eq!(result.unwrap().len(), 15);
+        assert_eq!(result, Ok(String::from("areallylongparti\0")));
+        assert_eq!(result.unwrap().len(), 17);
     }
 
     #[test]
@@ -349,12 +490,21 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_custom_partition_sub_type() {
+    fn test_deserialize_custom_partition_subtype() {
         let deserializer: StrDeserializer<ValueError> = "0x00".into_deserializer();
-        assert_eq!(
-            deserialize_custom_partition_sub_type(deserializer),
-            Ok(0x00)
-        );
+        assert_eq!(deserialize_custom_partition_subtype(deserializer), Ok(0x00));
+    }
+
+    #[test]
+    fn test_deserialize_partition_flags() {
+        let deserializer: StrDeserializer<ValueError> = "encrypted".into_deserializer();
+        assert_eq!(deserialize_partition_flags(deserializer), Ok(true));
+
+        let deserializer: StrDeserializer<ValueError> = "".into_deserializer();
+        assert_eq!(deserialize_partition_flags(deserializer), Ok(false));
+
+        let deserializer: StrDeserializer<ValueError> = "foo".into_deserializer();
+        assert_eq!(deserialize_partition_flags(deserializer), Ok(false));
     }
 
     #[test]
