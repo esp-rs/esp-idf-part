@@ -69,19 +69,35 @@ fn test_conversion_between_types() {
 
 #[test]
 fn test_esp_idf_unit_test_partition_tables() {
-    let csv = fs::read_to_string("tests/data/partition_table_unit_test_app_2m.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
-    assert!(table.is_ok());
+    let files = vec![
+        "tests/data/partition_table_unit_test_app_2m.csv",
+        "tests/data/partition_table_unit_test_app.csv",
+        "tests/data/partition_table_unit_test_two_ota_2m.csv",
+        "tests/data/partition_table_unit_test_two_ota.csv",
+    ];
 
-    let csv = fs::read_to_string("tests/data/partition_table_unit_test_app.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
-    assert!(table.is_ok());
+    for file in files {
+        let csv = fs::read_to_string(file).expect("Unable to read partition table file");
+        let table = PartitionTable::try_from(csv);
+        assert!(table.is_ok());
+    }
+}
 
-    let csv = fs::read_to_string("tests/data/partition_table_unit_test_two_ota_2m.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
-    assert!(table.is_ok());
+#[test]
+fn test_circuitpython_partition_tables() {
+    let files = vec![
+        "tests/data/partitions-16MB-no-uf2.csv",
+        "tests/data/partitions-16MB.csv",
+        "tests/data/partitions-2MB-no-uf2.csv",
+        "tests/data/partitions-4MB-no-uf2.csv",
+        "tests/data/partitions-4MB.csv",
+        "tests/data/partitions-8MB-no-uf2.csv",
+        "tests/data/partitions-8MB.csv",
+    ];
 
-    let csv = fs::read_to_string("tests/data/partition_table_unit_test_two_ota.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
-    assert!(table.is_ok());
+    for file in files {
+        let csv = fs::read_to_string(file).expect("Unable to read partition table file");
+        let table = PartitionTable::try_from(csv);
+        assert!(table.is_ok());
+    }
 }

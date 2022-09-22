@@ -12,4 +12,14 @@ The following CSV files were taken from the [ESP-IDF Partition Table API Guide](
 - `single_factory_no_ota.csv`
 - `factory_app_two_ota.csv`
 
+The following CSV files were taken from the [circuitpython repository](https://github.com/adafruit/circuitpython/tree/5a053f9ae54ebb1a2ab74924590877cb7d28659c/ports/espressif/esp-idf-config):
+
+- `partitions-16MB-no-uf2.csv`
+- `partitions-16MB.csv`
+- `partitions-2MB-no-uf2.csv`
+- `partitions-4MB-no-uf2.csv`
+- `partitions-4MB.csv`
+- `partitions-8MB-no-uf2.csv`
+- `partitions-8MB.csv`
+
 Any included binary files were generated using [esptool](https://github.com/espressif/esptool/tree/master/esptool) to help ensure compatibility.
