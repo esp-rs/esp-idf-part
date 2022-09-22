@@ -2,12 +2,12 @@
 //!
 //! <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
 
-use std::io::Write;
+use std::{io::Write, ops::Rem};
 
 use deku::prelude::*;
 use md5::{Context, Digest};
 
-use self::partition::{DeserializedBinPartition, DeserializedCsvPartition};
+use self::partition::{DeserializedBinPartition, DeserializedCsvPartition, PARTITION_ALIGNMENT};
 pub use self::{
     error::Error,
     partition::{AppType, DataType, Partition, SubType, Type},
@@ -136,7 +136,10 @@ impl PartitionTable {
             partitions.push(partition);
         }
 
-        Ok(Self::new(partitions))
+        let table = Self::new(partitions);
+        table.validate()?;
+
+        Ok(table)
     }
 
     /// Return a reference to a vector containing each partition in the
@@ -206,6 +209,42 @@ impl PartitionTable {
         csv.push_str(&String::from_utf8_lossy(&writer.into_inner().unwrap()));
 
         Ok(csv)
+    }
+
+    fn validate(&self) -> Result<(), Error> {
+        // There must be at least one partition with type 'app'
+        if self.find_by_type(Type::App).is_none() {
+            return Err(Error::NoAppPartition);
+        }
+
+        for partition in &self.partitions {
+            // Partitions of type 'app' have to be placed at offsets aligned to 0x10000
+            // (64k)
+            if partition.ty() == Type::App && partition.offset().rem(PARTITION_ALIGNMENT) != 0 {
+                return Err(Error::UnalignedPartition);
+            }
+        }
+
+        for partition_a in &self.partitions {
+            for partition_b in &self.partitions {
+                // Do not compare partitions with themselves :)
+                if partition_a == partition_b {
+                    continue;
+                }
+
+                // Partitions cannot have conflicting names
+                if partition_a.name() == partition_b.name() {
+                    return Err(Error::DuplicatePartitions);
+                }
+
+                // Partitions cannot overlap each other
+                if partition_a.overlaps(partition_b) {
+                    return Err(Error::OverlappingPartitions);
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

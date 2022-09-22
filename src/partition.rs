@@ -12,7 +12,7 @@ use strum::{EnumString, FromRepr};
 
 const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
 const MAX_NAME_LEN: usize = 16;
-const PARTITION_ALIGNMENT: u32 = 0x10000;
+pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
 
 /// Partition type
 // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field
