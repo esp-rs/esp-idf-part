@@ -66,3 +66,22 @@ fn test_conversion_between_types() {
 
     assert_eq!(table_a, table_b);
 }
+
+#[test]
+fn test_esp_idf_unit_test_partition_tables() {
+    let csv = fs::read_to_string("tests/data/partition_table_unit_test_app_2m.csv").unwrap();
+    let table = PartitionTable::try_from(csv);
+    assert!(table.is_ok());
+
+    let csv = fs::read_to_string("tests/data/partition_table_unit_test_app.csv").unwrap();
+    let table = PartitionTable::try_from(csv);
+    assert!(table.is_ok());
+
+    let csv = fs::read_to_string("tests/data/partition_table_unit_test_two_ota_2m.csv").unwrap();
+    let table = PartitionTable::try_from(csv);
+    assert!(table.is_ok());
+
+    let csv = fs::read_to_string("tests/data/partition_table_unit_test_two_ota.csv").unwrap();
+    let table = PartitionTable::try_from(csv);
+    assert!(table.is_ok());
+}
