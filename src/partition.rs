@@ -2,12 +2,13 @@ use core::fmt::Display;
 use std::{
     cmp::{max, min},
     io::Write,
+    str::FromStr,
 };
 
 use deku::{DekuContainerRead, DekuEnumExt, DekuError, DekuRead};
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use strum::FromRepr;
+use strum::{EnumString, FromRepr};
 
 const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
 const MAX_NAME_LEN: usize = 16;
@@ -67,7 +68,6 @@ impl Type {
 pub enum SubType {
     App(AppType),
     Data(DataType),
-    #[serde(deserialize_with = "deserialize_custom_partition_subtype")]
     Custom(u8),
 }
 
@@ -115,9 +115,12 @@ impl SubType {
 
 /// Partition sub-types which can be used with App partitions
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, FromRepr, Serialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, EnumString, FromRepr, Serialize,
+)]
 #[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AppType {
     Factory = 0x00,
     Ota_0   = 0x10,
@@ -140,9 +143,12 @@ pub enum AppType {
 }
 
 /// Partition sub-types which can be used with Data partitions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, FromRepr, Serialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, EnumString, FromRepr, Serialize,
+)]
 #[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DataType {
     Ota       = 0x00,
     Phy       = 0x01,
@@ -173,6 +179,7 @@ pub(crate) struct DeserializedCsvPartition {
     name: String,
     #[serde(deserialize_with = "deserialize_partition_type")]
     ty: Type,
+    #[serde(deserialize_with = "deserialize_partition_subtype")]
     subtype: SubType,
     #[serde(deserialize_with = "deserialize_partition_offset")]
     offset: Option<u32>,
@@ -392,13 +399,21 @@ where
     }
 }
 
-fn deserialize_custom_partition_subtype<'de, D>(deserializer: D) -> Result<u8, D::Error>
+fn deserialize_partition_subtype<'de, D>(deserializer: D) -> Result<SubType, D::Error>
 where
     D: Deserializer<'de>,
 {
     let buf = String::deserialize(deserializer)?;
 
-    parse_int::parse::<u8>(&buf).map_err(|_| Error::custom("invalid data partition sub-type"))
+    if let Ok(ty) = AppType::from_str(&buf) {
+        Ok(SubType::App(ty))
+    } else if let Ok(ty) = DataType::from_str(&buf) {
+        Ok(SubType::Data(ty))
+    } else if let Ok(ty) = parse_int::parse::<u8>(&buf) {
+        Ok(SubType::Custom(ty))
+    } else {
+        Err(Error::custom("invalid partition subtype"))
+    }
 }
 
 fn deserialize_partition_offset<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -501,9 +516,15 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_custom_partition_subtype() {
-        let deserializer: StrDeserializer<ValueError> = "0x00".into_deserializer();
-        assert_eq!(deserialize_custom_partition_subtype(deserializer), Ok(0x00));
+    fn test_deserialize_partition_subtype() {
+        let deserializer: StrDeserializer<ValueError> = "factory".into_deserializer();
+        assert_eq!(deserialize_partition_subtype(deserializer), Ok(SubType::App(AppType::Factory)));
+
+        let deserializer: StrDeserializer<ValueError> = "nvs".into_deserializer();
+        assert_eq!(deserialize_partition_subtype(deserializer), Ok(SubType::Data(DataType::Nvs)));
+
+        let deserializer: StrDeserializer<ValueError> = "0x40".into_deserializer();
+        assert_eq!(deserialize_partition_subtype(deserializer), Ok(SubType::Custom(0x40)));
     }
 
     #[test]
