@@ -1,6 +1,15 @@
 # esp-idf-part
 
-A library for parsing and generating ESP-IDF partition tables. Supports parsing from and generating to both CSV and Binary files.
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/jessebraham/esp-idf-part/CI?label=CI&logo=github&style=flat-square)
+![MSRV](https://img.shields.io/badge/MSRV-1.60-blue?style=flat-square)
+
+A library for parsing and generating ESP-IDF partition tables. Supports parsing from and generating to both CSV and Binary formats.
+
+> **Warning**
+>
+> This crate is still in early development and may not handle all edge cases. Use at your own risk and, and please report any issues that you may find!
+
+This package started its life as the implementation in [espflash](https://github.com/esp-rs/espflash/), however it has undergone some fairly extensive changes since being extracted into its own crate.
 
 ## Resources
 
