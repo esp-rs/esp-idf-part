@@ -12,6 +12,8 @@ pub enum Error {
 
     /// An error which originated in the `csv` package
     CsvError(csv::Error),
+    /// An error which originated in the `deku` package
+    DekuError(deku::DekuError),
     /// An error which originated in the `std::io` module
     IoError(std::io::Error),
 }
@@ -19,6 +21,12 @@ pub enum Error {
 impl From<csv::Error> for Error {
     fn from(e: csv::Error) -> Self {
         Error::CsvError(e)
+    }
+}
+
+impl From<deku::DekuError> for Error {
+    fn from(e: deku::DekuError) -> Self {
+        Error::DekuError(e)
     }
 }
 

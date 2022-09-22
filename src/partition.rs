@@ -15,7 +15,7 @@ const PARTITION_ALIGNMENT: u32 = 0x10000;
 
 /// Partition type
 // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, FromRepr, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, Serialize)]
 #[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
@@ -37,6 +37,16 @@ impl Display for Type {
                 Type::Custom(ty) => format!("{:#04x}", ty),
             }
         )
+    }
+}
+
+impl From<u8> for Type {
+    fn from(ty: u8) -> Self {
+        match ty {
+            0x00 => Type::App,
+            0x01 => Type::Data,
+            ty => Type::Custom(ty),
+        }
     }
 }
 
@@ -168,6 +178,7 @@ pub(crate) struct DeserializedCsvPartition {
     offset: Option<u32>,
     #[serde(deserialize_with = "deserialize_partition_size")]
     size: u32,
+    #[serde(default)]
     #[serde(deserialize_with = "deserialize_partition_flags")]
     encrypted: bool,
 }
@@ -305,7 +316,7 @@ impl From<DeserializedBinPartition> for Partition {
     fn from(part: DeserializedBinPartition) -> Self {
         assert!(part.offset.is_some());
 
-        let ty = Type::from_repr(part.ty.into()).unwrap();
+        let ty = Type::from(part.ty);
         let subtype = match ty {
             Type::App => SubType::from(AppType::from_repr(part.subtype.into()).unwrap()),
             Type::Data => SubType::from(DataType::from_repr(part.subtype.into()).unwrap()),

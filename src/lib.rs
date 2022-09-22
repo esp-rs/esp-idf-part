@@ -90,7 +90,7 @@ impl PartitionTable {
                     return Err(Error::InvalidChecksum);
                 }
             } else if line != END_MARKER {
-                let (_, partition) = DeserializedBinPartition::from_bytes((line, 0)).unwrap();
+                let (_, partition) = DeserializedBinPartition::from_bytes((line, 0))?;
 
                 let partition = Partition::from(partition);
                 partitions.push(partition);
@@ -117,6 +117,7 @@ impl PartitionTable {
         let data = data.into();
         let mut reader = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
+            .flexible(true)
             .has_headers(false)
             .trim(csv::Trim::All)
             .from_reader(data.as_bytes());
