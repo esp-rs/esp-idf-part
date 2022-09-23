@@ -7,7 +7,7 @@ A library for parsing and generating ESP-IDF partition tables. Supports parsing 
 
 > **Warning**
 >
-> This crate is still in early development and may not handle all edge cases. Use at your own risk and, and please report any issues that you may find!
+> This crate is still in early development and may not handle all edge cases. Use at your own risk and, please, report any issues that you may find!
 
 This package started its life as the implementation in [espflash](https://github.com/esp-rs/espflash/), however it has undergone some fairly extensive changes since being extracted into its own crate.
 
