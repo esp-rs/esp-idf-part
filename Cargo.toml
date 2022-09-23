@@ -16,6 +16,7 @@ deku        = "0.13.1"
 md5         = "0.7.0"
 parse_int   = "0.6.0"
 regex       = "1.6.0"
-serde       = { version = "1.0.144", features = ["derive"] }
+serde       = { version = "1.0.145", features = ["derive"] }
 serde_plain = "1.0.0"
 strum       = { version = "0.24.1",  features = ["derive"] }
+thiserror   = "1.0.35"

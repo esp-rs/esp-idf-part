@@ -52,9 +52,7 @@ impl PartitionTable {
         // CSV.
         if let Ok(part_table) = Self::try_from_bytes(&*input) {
             Ok(part_table)
-        } else if let Ok(part_table) =
-            Self::try_from_str(String::from_utf8(input).map_err(|_| Error::InvalidPartitionTable)?)
-        {
+        } else if let Ok(part_table) = Self::try_from_str(String::from_utf8(input)?) {
             Ok(part_table)
         } else {
             Err(Error::InvalidPartitionTable)
@@ -71,7 +69,7 @@ impl PartitionTable {
     {
         let data = data.into();
 
-        // The data's MUST be an even multiple of 32 (bits)
+        // The data's MUST be an even multiple of 32
         if data.len() % 32 != 0 {
             return Err(Error::LengthNotMultipleOf32);
         }
@@ -87,7 +85,10 @@ impl PartitionTable {
                 let digest_computed = *ctx.clone().compute();
 
                 if digest_computed != digest_in_file {
-                    return Err(Error::InvalidChecksum);
+                    return Err(Error::InvalidChecksum {
+                        expected: digest_in_file.to_vec(),
+                        computed: digest_computed.to_vec(),
+                    });
                 }
             } else if line != END_MARKER {
                 let (_, partition) = DeserializedBinPartition::from_bytes((line, 0))?;
@@ -234,12 +235,15 @@ impl PartitionTable {
 
                 // Partitions cannot have conflicting names
                 if partition_a.name() == partition_b.name() {
-                    return Err(Error::DuplicatePartitions);
+                    return Err(Error::DuplicatePartitions(partition_a.name()));
                 }
 
                 // Partitions cannot overlap each other
                 if partition_a.overlaps(partition_b) {
-                    return Err(Error::OverlappingPartitions);
+                    return Err(Error::OverlappingPartitions(
+                        partition_a.name(),
+                        partition_b.name(),
+                    ));
                 }
             }
         }

@@ -1,45 +1,44 @@
 /// Partition table error
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Two or more partitions with the same name were found
-    DuplicatePartitions,
+    #[error("Two or more partitions with the same name ('{0}') were found")]
+    DuplicatePartitions(String),
     /// The checksum in the binary data does not match the computed value
-    InvalidChecksum,
+    #[error("The binary's checksum is invalid (expected '{expected:?}', computed '{computed:?}')")]
+    InvalidChecksum {
+        expected: Vec<u8>,
+        computed: Vec<u8>,
+    },
     /// The partition table is invalid
+    #[error("The partition table is invalid")]
     InvalidPartitionTable,
-    /// The length of the binary data is not a multiple of 32 (bits)
+    /// The length of the binary data is not a multiple of 32
+    #[error("The length of the binary data is not a multiple of 32")]
     LengthNotMultipleOf32,
     /// No partition of type 'app' was found in the partition table
+    #[error("No partition of type 'app' was found in the partition table")]
     NoAppPartition,
     /// No ned marker was found in the binary data
+    #[error("No ned marker was found in the binary data")]
     NoEndMarker,
     /// Two partitions are overlapping each other
-    OverlappingPartitions,
+    #[error("Two partitions are overlapping each other: '{0}' and '{1}'")]
+    OverlappingPartitions(String, String),
     /// The partition is not correctly aligned
+    #[error("The partition is not correctly aligned")]
     UnalignedPartition,
 
     /// An error which originated in the `csv` package
-    CsvError(csv::Error),
+    #[error(transparent)]
+    CsvError(#[from] csv::Error),
     /// An error which originated in the `deku` package
-    DekuError(deku::DekuError),
+    #[error(transparent)]
+    DekuError(#[from] deku::DekuError),
+    /// An error which occurred while trying to convert bytes to a String
+    #[error(transparent)]
+    FromUtf8Error(#[from] std::string::FromUtf8Error),
     /// An error which originated in the `std::io` module
-    IoError(std::io::Error),
-}
-
-impl From<csv::Error> for Error {
-    fn from(e: csv::Error) -> Self {
-        Error::CsvError(e)
-    }
-}
-
-impl From<deku::DekuError> for Error {
-    fn from(e: deku::DekuError) -> Self {
-        Error::DekuError(e)
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self {
-        Error::IoError(e)
-    }
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 }
