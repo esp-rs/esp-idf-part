@@ -218,6 +218,17 @@ impl PartitionTable {
             return Err(Error::NoAppPartition);
         }
 
+        // There can be at most one partition of type 'app' and of subtype 'factory'
+        if self
+            .partitions
+            .iter()
+            .filter(|p| p.ty() == Type::App && p.subtype() == SubType::App(AppType::Factory))
+            .count()
+            > 1
+        {
+            return Err(Error::MultipleFactoryPartitions);
+        }
+
         for partition in &self.partitions {
             // Partitions of type 'app' have to be placed at offsets aligned to 0x10000
             // (64k)

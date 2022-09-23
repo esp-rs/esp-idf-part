@@ -22,4 +22,6 @@ The following CSV files were taken from the [circuitpython repository](https://g
 - `partitions-8MB-no-uf2.csv`
 - `partitions-8MB.csv`
 
+The remaining CSV files were crafted by hand.
+
 Any included binary files were generated using [esptool](https://github.com/espressif/esptool/tree/master/esptool) to help ensure compatibility.

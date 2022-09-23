@@ -16,6 +16,9 @@ pub enum Error {
     /// The length of the binary data is not a multiple of 32
     #[error("The length of the binary data is not a multiple of 32")]
     LengthNotMultipleOf32,
+    /// Multiple partitions with type 'app' and subtype 'factory' were found
+    #[error("Multiple partitions with type 'app' and subtype 'factory' were found")]
+    MultipleFactoryPartitions,
     /// No partition of type 'app' was found in the partition table
     #[error("No partition of type 'app' was found in the partition table")]
     NoAppPartition,
