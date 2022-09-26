@@ -14,8 +14,14 @@ const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
 const MAX_NAME_LEN: usize = 16;
 pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
 
-/// Partition type
-// https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field
+/// Supported partition types
+///
+/// User-defined partition types are allowed as long as their type ID does not
+/// confict with [`Type::App`] or [`Type::Data`].
+///
+/// For additional information regarding the supported partition types, please
+/// refer to the ESP-IDF documentation:  
+/// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, Serialize)]
 #[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "lowercase")]
@@ -52,6 +58,7 @@ impl From<u8> for Type {
 }
 
 impl Type {
+    /// Return the numeric partition type ID for the given type
     pub fn as_u8(&self) -> u8 {
         match self {
             Type::App => 0x00,
@@ -60,6 +67,9 @@ impl Type {
         }
     }
 
+    /// Return a `String` stating which subtypes are allowed for the given type.
+    ///
+    /// This is useful for error handling in dependent packages.
     pub fn subtype_hint(&self) -> String {
         match self {
             Type::App => "'factory', 'ota_0' through 'ota_15', or 'test'".into(),
@@ -77,8 +87,14 @@ impl Type {
     }
 }
 
-/// Partition subtype
-// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
+/// Supported partition subtypes
+///
+/// User-defined partition subtypes are allowed as long as the partitions `Type`
+/// is [`Type::Custom`].
+///
+/// For additional information regarding the supported partition subtypes,
+/// please refer to the ESP-IDF documentation:  
+/// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum SubType {
@@ -120,6 +136,7 @@ impl From<u8> for SubType {
 }
 
 impl SubType {
+    /// Return the numeric partition type ID for the given subtype
     pub fn as_u8(&self) -> u8 {
         match self {
             SubType::App(ty) => *ty as u8,
@@ -129,7 +146,10 @@ impl SubType {
     }
 }
 
-/// Partition sub-types which can be used with App partitions
+/// Partition sub-types which can be used with [`Type::App`] partitions
+///
+/// A full list of support subtypes can be found in the ESP-IDF documentation:  
+/// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[allow(non_camel_case_types)]
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, EnumString, FromRepr, Serialize,
@@ -158,7 +178,10 @@ pub enum AppType {
     Test    = 0x20,
 }
 
-/// Partition sub-types which can be used with Data partitions
+/// Partition sub-types which can be used with [`Type::Data`] partitions
+///
+/// A full list of support subtypes can be found in the ESP-IDF documentation:  
+/// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[derive(
     Debug,
     Clone,
@@ -239,6 +262,7 @@ impl DeserializedCsvPartition {
     }
 }
 
+/// A partition
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Partition {
     name: String,
@@ -325,7 +349,7 @@ impl Partition {
         Ok(())
     }
 
-    /// Write a record to the provided CSV writer
+    /// Write a record to the provided [`csv::Writer`]
     pub fn write_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
     where
         W: Write,

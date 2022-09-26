@@ -1,5 +1,8 @@
-//! ESP-IDF Partition Tables
+//! A library for parsing and generating ESP-IDF partition tables, both in the
+//! binary and CSV formats as described in the ESP-IDF documentation.
 //!
+//! For additional information regarding the partition table format please refer
+//! to the ESP-IDF documentation:  
 //! <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
 
 use std::{io::Write, ops::Rem};
@@ -31,7 +34,10 @@ pub struct PartitionTable {
 }
 
 impl PartitionTable {
-    /// Construct a new partition table from a vector of partitions
+    /// Construct a new partition table from zero or more partitions
+    ///
+    /// Note that in order for a partition table to pass validation, it must
+    /// have at least one partition with type [`Type::App`].
     pub fn new(partitions: Vec<Partition>) -> Self {
         Self { partitions }
     }
@@ -169,6 +175,7 @@ impl PartitionTable {
             .find(|p| p.ty() == ty && p.subtype() == subtype)
     }
 
+    /// Convert a partition table to binary
     pub fn to_bin(&self) -> Result<Vec<u8>, Error> {
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
         let mut hasher = HashWriter::new(&mut result);
@@ -192,6 +199,7 @@ impl PartitionTable {
         Ok(result)
     }
 
+    /// Convert a partition table to a CSV string
     pub fn to_csv(&self) -> Result<String, Error> {
         let mut csv = String::new();
 
@@ -215,6 +223,7 @@ impl PartitionTable {
         Ok(csv)
     }
 
+    /// Validate a partition table
     fn validate(&self) -> Result<(), Error> {
         // There must be at least one partition with type 'app'
         if self.find_by_type(Type::App).is_none() {
