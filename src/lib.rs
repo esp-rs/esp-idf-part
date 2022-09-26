@@ -100,7 +100,10 @@ impl PartitionTable {
             } else {
                 // We're finished parsing the binary data, time to construct and return the
                 // [PartitionTable].
-                return Ok(Self { partitions });
+                let table = Self::new(partitions);
+                table.validate()?;
+
+                return Ok(table);
             }
         }
 

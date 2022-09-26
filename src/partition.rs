@@ -8,7 +8,7 @@ use std::{
 use deku::{DekuContainerRead, DekuEnumExt, DekuError, DekuRead};
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use strum::{EnumString, FromRepr};
+use strum::{EnumIter, EnumString, FromRepr, IntoEnumIterator};
 
 const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
 const MAX_NAME_LEN: usize = 16;
@@ -57,6 +57,22 @@ impl Type {
             Type::App => 0x00,
             Type::Data => 0x01,
             Type::Custom(ty) => *ty,
+        }
+    }
+
+    pub fn subtype_hint(&self) -> String {
+        match self {
+            Type::App => "'factory', 'ota_0' through 'ota_15', or 'test'".into(),
+            Type::Data => {
+                let types = DataType::iter()
+                    .map(|dt| format!("'{}'", serde_plain::to_string(&dt).unwrap()))
+                    .collect::<Vec<_>>();
+
+                let (tail, head) = types.split_last().unwrap();
+
+                format!("{}, and {}", head.join(", "), tail)
+            }
+            Type::Custom(..) => "0x02 through 0xFE".into(),
         }
     }
 }
@@ -144,7 +160,17 @@ pub enum AppType {
 
 /// Partition sub-types which can be used with Data partitions
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, EnumString, FromRepr, Serialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    DekuRead,
+    Deserialize,
+    EnumIter,
+    EnumString,
+    FromRepr,
+    Serialize,
 )]
 #[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "snake_case")]
@@ -518,13 +544,22 @@ mod tests {
     #[test]
     fn test_deserialize_partition_subtype() {
         let deserializer: StrDeserializer<ValueError> = "factory".into_deserializer();
-        assert_eq!(deserialize_partition_subtype(deserializer), Ok(SubType::App(AppType::Factory)));
+        assert_eq!(
+            deserialize_partition_subtype(deserializer),
+            Ok(SubType::App(AppType::Factory))
+        );
 
         let deserializer: StrDeserializer<ValueError> = "nvs".into_deserializer();
-        assert_eq!(deserialize_partition_subtype(deserializer), Ok(SubType::Data(DataType::Nvs)));
+        assert_eq!(
+            deserialize_partition_subtype(deserializer),
+            Ok(SubType::Data(DataType::Nvs))
+        );
 
         let deserializer: StrDeserializer<ValueError> = "0x40".into_deserializer();
-        assert_eq!(deserialize_partition_subtype(deserializer), Ok(SubType::Custom(0x40)));
+        assert_eq!(
+            deserialize_partition_subtype(deserializer),
+            Ok(SubType::Custom(0x40))
+        );
     }
 
     #[test]
