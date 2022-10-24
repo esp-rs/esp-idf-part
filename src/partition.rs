@@ -8,7 +8,7 @@ use std::{
 use deku::{DekuContainerRead, DekuEnumExt, DekuError, DekuRead};
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use strum::{EnumIter, EnumString, FromRepr, IntoEnumIterator};
+use strum::{EnumIter, EnumString, EnumVariantNames, FromRepr, IntoEnumIterator};
 
 const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
 const MAX_NAME_LEN: usize = 16;
@@ -152,7 +152,17 @@ impl SubType {
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[allow(non_camel_case_types)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, EnumString, FromRepr, Serialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    DekuRead,
+    Deserialize,
+    EnumString,
+    EnumVariantNames,
+    FromRepr,
+    Serialize,
 )]
 #[deku(endian = "little", type = "u8")]
 #[serde(rename_all = "snake_case")]
@@ -192,6 +202,7 @@ pub enum AppType {
     Deserialize,
     EnumIter,
     EnumString,
+    EnumVariantNames,
     FromRepr,
     Serialize,
 )]
