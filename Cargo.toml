@@ -1,6 +1,6 @@
 [package]
 name         = "esp-idf-part"
-version      = "0.1.0"
+version      = "0.1.1"
 authors      = ["Jesse Braham <jesse@beta7.io>"]
 edition      = "2021"
 rust-version = "1.60.0"
@@ -12,7 +12,7 @@ categories   = ["embedded", "parsing"]
 
 [dependencies]
 csv         = "1.1.6"
-deku        = "0.13.1"
+deku        = "0.14.1"
 md5         = "0.7.0"
 parse_int   = "0.6.0"
 regex       = "1.6.0"
