@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use deku::{DekuContainerRead, DekuEnumExt, DekuError, DekuRead};
+use deku::{DekuEnumExt, DekuError, DekuRead};
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use strum::{EnumIter, EnumString, EnumVariantNames, FromRepr, IntoEnumIterator};
