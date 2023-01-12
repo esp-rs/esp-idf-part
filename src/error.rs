@@ -68,21 +68,25 @@ pub enum Error {
 
     /// An error which originated in the `csv` package
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[cfg_attr(feature = "std", error(transparent))]
     CsvError(#[from] csv::Error),
 
     /// An error which originated in the `deku` package
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[cfg_attr(feature = "std", error(transparent))]
     DekuError(#[from] deku::DekuError),
 
     /// An error which occurred while trying to convert bytes to a String
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[cfg_attr(feature = "std", error(transparent))]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
 
     /// An error which originated in the `std::io` module
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     #[cfg_attr(feature = "std", error(transparent))]
     IoError(#[from] std::io::Error),
 }

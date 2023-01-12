@@ -6,6 +6,7 @@
 //! <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "std")]
 use core::ops::Rem;
@@ -60,6 +61,7 @@ impl PartitionTable {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Attempt to parse either a binary or CSV partition table from the given
     /// input.
     ///
@@ -84,6 +86,7 @@ impl PartitionTable {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Attempt to parse a binary partition table from the given bytes.
     ///
     /// For more information on the partition table format see:  
@@ -136,6 +139,7 @@ impl PartitionTable {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Attempt to parse a CSV partition table from the given string.
     ///
     /// For more information on the partition table format see:  
@@ -196,6 +200,7 @@ impl PartitionTable {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Convert a partition table to binary
     pub fn to_bin(&self) -> Result<Vec<u8>, Error> {
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
@@ -221,6 +226,7 @@ impl PartitionTable {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Convert a partition table to a CSV string
     pub fn to_csv(&self) -> Result<String, Error> {
         let mut csv = String::new();
@@ -246,6 +252,7 @@ impl PartitionTable {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Validate a partition table
     fn validate(&self) -> Result<(), Error> {
         // There must be at least one partition with type 'app'
