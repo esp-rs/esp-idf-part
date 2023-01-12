@@ -5,26 +5,43 @@
 //! to the ESP-IDF documentation:  
 //! <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
 
-use std::{io::Write, ops::Rem};
+#![cfg_attr(not(feature = "std"), no_std)]
 
-use deku::prelude::*;
-use md5::{Context, Digest};
+#[cfg(feature = "std")]
+use core::ops::Rem;
+#[cfg(feature = "std")]
+use std::io::Write as _;
 
-use self::partition::{DeserializedBinPartition, DeserializedCsvPartition, PARTITION_ALIGNMENT};
+#[cfg(feature = "std")]
+use deku::prelude::DekuContainerRead as _;
+
 pub use self::{
     error::Error,
     partition::{AppType, DataType, Partition, SubType, Type},
+};
+#[cfg(feature = "std")]
+use self::{
+    hash_writer::HashWriter,
+    partition::{DeserializedBinPartition, DeserializedCsvPartition, PARTITION_ALIGNMENT},
 };
 
 mod error;
 mod partition;
 
+#[cfg(not(feature = "std"))]
+type Vec<T> = heapless::Vec<T, PARTITION_SIZE>;
+
+#[cfg(feature = "std")]
 const END_MARKER: [u8; 32] = [0xFF; 32];
+#[cfg(feature = "std")]
 const MAX_PARTITION_LENGTH: usize = 0xC00;
-const MD5_PART_MAGIC_BYTES: [u8; 16] = [
+pub(crate) const MD5_NUM_MAGIC_BYTES: usize = 16;
+#[cfg(feature = "std")]
+const MD5_PART_MAGIC_BYTES: [u8; MD5_NUM_MAGIC_BYTES] = [
     0xEB, 0xEB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 ];
 const PARTITION_SIZE: usize = 32;
+#[cfg(feature = "std")]
 const PARTITION_TABLE_SIZE: usize = 0x1000;
 
 /// A partition table
@@ -42,6 +59,7 @@ impl PartitionTable {
         Self { partitions }
     }
 
+    #[cfg(feature = "std")]
     /// Attempt to parse either a binary or CSV partition table from the given
     /// input.
     ///
@@ -65,6 +83,7 @@ impl PartitionTable {
         }
     }
 
+    #[cfg(feature = "std")]
     /// Attempt to parse a binary partition table from the given bytes.
     ///
     /// For more information on the partition table format see:  
@@ -80,7 +99,7 @@ impl PartitionTable {
             return Err(Error::LengthNotMultipleOf32);
         }
 
-        let mut ctx = Context::new();
+        let mut ctx = md5::Context::new();
 
         let mut partitions = vec![];
         for line in data.chunks_exact(PARTITION_SIZE) {
@@ -116,6 +135,7 @@ impl PartitionTable {
         Err(Error::NoEndMarker)
     }
 
+    #[cfg(feature = "std")]
     /// Attempt to parse a CSV partition table from the given string.
     ///
     /// For more information on the partition table format see:  
@@ -175,6 +195,7 @@ impl PartitionTable {
             .find(|p| p.ty() == ty && p.subtype() == subtype)
     }
 
+    #[cfg(feature = "std")]
     /// Convert a partition table to binary
     pub fn to_bin(&self) -> Result<Vec<u8>, Error> {
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
@@ -199,6 +220,7 @@ impl PartitionTable {
         Ok(result)
     }
 
+    #[cfg(feature = "std")]
     /// Convert a partition table to a CSV string
     pub fn to_csv(&self) -> Result<String, Error> {
         let mut csv = String::new();
@@ -223,6 +245,7 @@ impl PartitionTable {
         Ok(csv)
     }
 
+    #[cfg(feature = "std")]
     /// Validate a partition table
     fn validate(&self) -> Result<(), Error> {
         // There must be at least one partition with type 'app'
@@ -275,84 +298,42 @@ impl PartitionTable {
     }
 }
 
-struct HashWriter<W> {
-    inner: W,
-    hasher: Context,
-}
+#[cfg(feature = "std")]
+mod hash_writer {
+    use md5::{Context, Digest};
 
-impl<W> Write for HashWriter<W>
-where
-    W: Write,
-{
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.hasher.write_all(buf)?;
-        self.inner.write(buf)
+    pub(crate) struct HashWriter<W> {
+        inner: W,
+        hasher: Context,
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.flush()
-    }
-}
+    impl<W> std::io::Write for HashWriter<W>
+    where
+        W: std::io::Write,
+    {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.hasher.write_all(buf)?;
+            self.inner.write(buf)
+        }
 
-impl<W> HashWriter<W>
-where
-    W: Write,
-{
-    fn new(inner: W) -> Self {
-        Self {
-            inner,
-            hasher: Context::new(),
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.inner.flush()
         }
     }
 
-    fn compute(self) -> (W, Digest) {
-        (self.inner, self.hasher.compute())
-    }
-}
+    impl<W> HashWriter<W>
+    where
+        W: std::io::Write,
+    {
+        pub fn new(inner: W) -> Self {
+            Self {
+                inner,
+                hasher: Context::new(),
+            }
+        }
 
-#[cfg(test)]
-mod tests {
-    use std::fs;
-
-    use super::*;
-
-    #[test]
-    fn test_find() {
-        let csv = fs::read_to_string("tests/data/single_factory_no_ota.csv").unwrap();
-        let table = PartitionTable::try_from(csv).unwrap();
-
-        assert!(table.find("nvs").is_some());
-        assert!(table.find("phy_init").is_some());
-        assert!(table.find("factory").is_some());
-
-        assert!(table.find("foo").is_none());
-    }
-
-    #[test]
-    fn test_find_by_type() {
-        let csv = fs::read_to_string("tests/data/single_factory_no_ota.csv").unwrap();
-        let table = PartitionTable::try_from(csv).unwrap();
-
-        assert!(table.find_by_type(Type::App).is_some());
-        assert!(table.find_by_type(Type::Data).is_some());
-
-        assert!(table.find_by_type(Type::Custom(0x40)).is_none());
-    }
-
-    #[test]
-    fn test_find_by_subtype() {
-        let csv = fs::read_to_string("tests/data/single_factory_no_ota.csv").unwrap();
-        let table = PartitionTable::try_from(csv).unwrap();
-
-        assert!(table
-            .find_by_subtype(Type::App, SubType::App(AppType::Factory))
-            .is_some());
-        assert!(table
-            .find_by_subtype(Type::Data, SubType::Data(DataType::Nvs))
-            .is_some());
-
-        assert!(table
-            .find_by_subtype(Type::Custom(0x40), SubType::Custom(0x40))
-            .is_none());
+        pub fn compute(self) -> (W, Digest) {
+            (self.inner, self.hasher.compute())
+        }
     }
 }
