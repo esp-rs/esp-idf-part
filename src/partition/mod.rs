@@ -1,19 +1,25 @@
-use core::fmt::Display;
-use std::{
-    cmp::{max, min},
-    io::Write,
-};
+use core::cmp::{max, min};
 
+#[cfg(feature = "std")]
 use deku::{DekuEnumExt, DekuError, DekuRead};
 use serde::{Deserialize, Serialize};
-use strum::{EnumIter, EnumString, EnumVariantNames, FromRepr, IntoEnumIterator};
+#[cfg(feature = "std")]
+use strum::IntoEnumIterator;
+use strum::{EnumIter, EnumString, EnumVariantNames, FromRepr};
 
+#[cfg(feature = "std")]
 pub(crate) use self::de::{DeserializedBinPartition, DeserializedCsvPartition};
 
+#[cfg(feature = "std")]
 mod de;
 
+#[cfg(not(feature = "std"))]
+type String = heapless::String<MAX_NAME_LEN>;
+
+#[cfg(feature = "std")]
 const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
-const MAX_NAME_LEN: usize = 16;
+pub(crate) const MAX_NAME_LEN: usize = 16;
+#[cfg(feature = "std")]
 pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
 
 /// Supported partition types
@@ -24,26 +30,30 @@ pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
 /// For additional information regarding the supported partition types, please
 /// refer to the ESP-IDF documentation:  
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, DekuRead, Deserialize, Serialize)]
-#[deku(endian = "little", type = "u8")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(
+    feature = "std",
+    derive(DekuRead),
+    deku(endian = "little", type = "u8")
+)]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
-    #[deku(id = "0x00")]
+    #[cfg_attr(feature = "std", deku(id = "0x00"))]
     App,
-    #[deku(id = "0x01")]
+    #[cfg_attr(feature = "std", deku(id = "0x01"))]
     Data,
-    #[deku(id_pat = "0x02..=0xFE")]
+    #[cfg_attr(feature = "std", deku(id_pat = "0x02..=0xFE"))]
     Custom(u8),
 }
 
-impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Type {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(
             f,
             "{}",
             match self {
                 Type::App | Type::Data => serde_plain::to_string(self).unwrap(),
-                Type::Custom(ty) => format!("{:#04x}", ty),
+                Type::Custom(_ty) => todo!(), // format!("{:#04x}", ty)
             }
         )
     }
@@ -69,6 +79,7 @@ impl Type {
         }
     }
 
+    #[cfg(feature = "std")]
     /// Return a `String` stating which subtypes are allowed for the given type.
     ///
     /// This is useful for error handling in dependent packages.
@@ -105,15 +116,15 @@ pub enum SubType {
     Custom(u8),
 }
 
-impl Display for SubType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SubType {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(
             f,
             "{}",
             match self {
                 SubType::App(ty) => serde_plain::to_string(ty).unwrap(),
                 SubType::Data(ty) => serde_plain::to_string(ty).unwrap(),
-                SubType::Custom(ty) => format!("{:#04x}", ty),
+                SubType::Custom(_ty) => todo!(), // format!("{:#04x}", ty)
             }
         )
     }
@@ -159,14 +170,18 @@ impl SubType {
     Copy,
     PartialEq,
     Eq,
-    DekuRead,
     Deserialize,
+    EnumIter,
     EnumString,
     EnumVariantNames,
     FromRepr,
     Serialize,
 )]
-#[deku(endian = "little", type = "u8")]
+#[cfg_attr(
+    feature = "std",
+    derive(DekuRead),
+    deku(endian = "little", type = "u8")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AppType {
@@ -200,7 +215,6 @@ pub enum AppType {
     Copy,
     PartialEq,
     Eq,
-    DekuRead,
     Deserialize,
     EnumIter,
     EnumString,
@@ -208,7 +222,11 @@ pub enum AppType {
     FromRepr,
     Serialize,
 )]
-#[deku(endian = "little", type = "u8")]
+#[cfg_attr(
+    feature = "std",
+    derive(DekuRead),
+    deku(endian = "little", type = "u8")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum DataType {
@@ -290,10 +308,11 @@ impl Partition {
         max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
     }
 
+    #[cfg(feature = "std")]
     /// Write a record to the provided binary writer
     pub fn write_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
-        W: Write,
+        W: std::io::Write,
     {
         writer.write_all(&MAGIC_BYTES)?;
         writer.write_all(&[self.ty.as_u8(), self.subtype.as_u8()])?;
@@ -311,10 +330,11 @@ impl Partition {
         Ok(())
     }
 
+    #[cfg(feature = "std")]
     /// Write a record to the provided [`csv::Writer`]
     pub fn write_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
     where
-        W: Write,
+        W: std::io::Write,
     {
         let flags = if self.encrypted { "encrypted" } else { "" };
 
