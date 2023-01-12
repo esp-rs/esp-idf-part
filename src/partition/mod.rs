@@ -80,6 +80,7 @@ impl Type {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Return a `String` stating which subtypes are allowed for the given type.
     ///
     /// This is useful for error handling in dependent packages.
@@ -309,6 +310,7 @@ impl Partition {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Write a record to the provided binary writer
     pub fn write_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
@@ -331,6 +333,7 @@ impl Partition {
     }
 
     #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Write a record to the provided [`csv::Writer`]
     pub fn write_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
     where
