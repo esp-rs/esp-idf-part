@@ -53,7 +53,7 @@ impl core::fmt::Display for Type {
             "{}",
             match self {
                 Type::App | Type::Data => serde_plain::to_string(self).unwrap(),
-                Type::Custom(_ty) => todo!(), // format!("{:#04x}", ty)
+                Type::Custom(ty) => serde_plain::to_string(&format_args!("{:#04x}", ty)).unwrap(),
             }
         )
     }
@@ -125,7 +125,8 @@ impl core::fmt::Display for SubType {
             match self {
                 SubType::App(ty) => serde_plain::to_string(ty).unwrap(),
                 SubType::Data(ty) => serde_plain::to_string(ty).unwrap(),
-                SubType::Custom(_ty) => todo!(), // format!("{:#04x}", ty)
+                SubType::Custom(ty) =>
+                    serde_plain::to_string(&format_args!("{:#04x}", ty)).unwrap(),
             }
         )
     }
