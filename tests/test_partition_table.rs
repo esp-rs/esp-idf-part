@@ -88,6 +88,13 @@ fn test_esp_idf_unit_test_partition_tables() {
         let csv = fs::read_to_string(file).expect("Unable to read partition table file");
         let table = PartitionTable::try_from(csv);
         assert!(table.is_ok());
+
+        let table = table.unwrap();
+        let factory = table.find("factory");
+        assert!(factory.is_some());
+        let factory = factory.unwrap();
+        assert_eq!(factory.ty(), Type::App);
+        assert_eq!(factory.subtype(), SubType::App(AppType::Factory));
     }
 }
 

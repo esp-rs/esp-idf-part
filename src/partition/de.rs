@@ -23,8 +23,8 @@ impl From<DeserializedBinPartition> for Partition {
 
         let ty = Type::from(part.ty);
         let subtype = match ty {
-            Type::App => SubType::from(AppType::from_repr(part.subtype.into()).unwrap()),
-            Type::Data => SubType::from(DataType::from_repr(part.subtype.into()).unwrap()),
+            Type::App => SubType::app(part.subtype),
+            Type::Data => SubType::data(part.subtype),
             Type::Custom(..) => SubType::from(part.subtype),
         };
 
@@ -63,10 +63,16 @@ impl From<DeserializedCsvPartition> for Partition {
     fn from(part: DeserializedCsvPartition) -> Self {
         assert!(part.offset.is_some());
 
+        let subtype = match part.ty {
+            Type::App => SubType::app(part.subtype.as_u8()),
+            Type::Data => SubType::data(part.subtype.as_u8()),
+            Type::Custom(..) => SubType::from(part.subtype.as_u8()),
+        };
+
         Self {
             name: part.name.trim_matches(char::from(0)).to_string(),
             ty: part.ty,
-            subtype: part.subtype,
+            subtype,
             offset: part.offset.unwrap(),
             size: part.size,
             encrypted: part.encrypted,
