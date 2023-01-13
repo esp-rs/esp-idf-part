@@ -151,6 +151,16 @@ impl From<u8> for SubType {
 }
 
 impl SubType {
+    /// Create a [SubType::App] variant from an integer value
+    pub fn app(value: u8) -> Self {
+        Self::App(AppType::from_repr(value as usize).unwrap())
+    }
+
+    /// Create a [SubType::Data] variant from an integer value
+    pub fn data(value: u8) -> Self {
+        Self::Data(DataType::from_repr(value as usize).unwrap())
+    }
+
     /// Return the numeric partition type ID for the given subtype
     pub fn as_u8(&self) -> u8 {
         match self {
