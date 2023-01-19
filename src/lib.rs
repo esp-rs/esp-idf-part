@@ -9,9 +9,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "std")]
-use core::ops::Rem;
-#[cfg(feature = "std")]
-use std::io::Write as _;
+use std::{io::Write as _, ops::Rem as _};
 
 #[cfg(feature = "std")]
 use deku::prelude::DekuContainerRead as _;
@@ -32,18 +30,12 @@ mod partition;
 #[cfg(not(feature = "std"))]
 type Vec<T> = heapless::Vec<T, PARTITION_SIZE>;
 
-#[cfg(feature = "std")]
-const END_MARKER: [u8; 32] = [0xFF; 32];
-#[cfg(feature = "std")]
-const MAX_PARTITION_LENGTH: usize = 0xC00;
 pub(crate) const MD5_NUM_MAGIC_BYTES: usize = 16;
 #[cfg(feature = "std")]
 const MD5_PART_MAGIC_BYTES: [u8; MD5_NUM_MAGIC_BYTES] = [
     0xEB, 0xEB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 ];
 const PARTITION_SIZE: usize = 32;
-#[cfg(feature = "std")]
-const PARTITION_TABLE_SIZE: usize = 0x1000;
 
 /// A partition table
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,16 +52,16 @@ impl PartitionTable {
         Self { partitions }
     }
 
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Attempt to parse either a binary or CSV partition table from the given
     /// input.
     ///
     /// For more information on the partition table format see:  
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
-    pub fn try_from<S>(data: S) -> Result<Self, Error>
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub fn try_from<D>(data: D) -> Result<Self, Error>
     where
-        S: Into<Vec<u8>>,
+        D: Into<Vec<u8>>,
     {
         let input: Vec<u8> = data.into();
 
@@ -85,17 +77,19 @@ impl PartitionTable {
         }
     }
 
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Attempt to parse a binary partition table from the given bytes.
     ///
     /// For more information on the partition table format see:  
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
-    pub fn try_from_bytes<S>(data: S) -> Result<Self, Error>
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub fn try_from_bytes<B>(bytes: B) -> Result<Self, Error>
     where
-        S: Into<Vec<u8>>,
+        B: Into<Vec<u8>>,
     {
-        let data = data.into();
+        const END_MARKER: [u8; 32] = [0xFF; 32];
+
+        let data = bytes.into();
 
         // The data's MUST be an even multiple of 32
         if data.len() % 32 != 0 {
@@ -138,17 +132,17 @@ impl PartitionTable {
         Err(Error::NoEndMarker)
     }
 
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     /// Attempt to parse a CSV partition table from the given string.
     ///
     /// For more information on the partition table format see:  
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
-    pub fn try_from_str<S>(data: S) -> Result<Self, Error>
+    #[cfg(feature = "std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+    pub fn try_from_str<S>(string: S) -> Result<Self, Error>
     where
         S: Into<String>,
     {
-        let data = data.into();
+        let data = string.into();
         let mut reader = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
             .flexible(true)
@@ -199,10 +193,13 @@ impl PartitionTable {
             .find(|p| p.ty() == ty && p.subtype() == subtype)
     }
 
+    /// Convert a partition table to binary
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    /// Convert a partition table to binary
     pub fn to_bin(&self) -> Result<Vec<u8>, Error> {
+        const MAX_PARTITION_LENGTH: usize = 0xC00;
+        const PARTITION_TABLE_SIZE: usize = 0x1000;
+
         let mut result = Vec::with_capacity(PARTITION_TABLE_SIZE);
         let mut hasher = HashWriter::new(&mut result);
 
@@ -225,9 +222,9 @@ impl PartitionTable {
         Ok(result)
     }
 
+    /// Convert a partition table to a CSV string
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    /// Convert a partition table to a CSV string
     pub fn to_csv(&self) -> Result<String, Error> {
         let mut csv = String::new();
 
@@ -251,9 +248,9 @@ impl PartitionTable {
         Ok(csv)
     }
 
+    /// Validate a partition table
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    /// Validate a partition table
     fn validate(&self) -> Result<(), Error> {
         // There must be at least one partition with type 'app'
         if self.find_by_type(Type::App).is_none() {
