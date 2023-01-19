@@ -64,9 +64,9 @@ impl From<DeserializedCsvPartition> for Partition {
         assert!(part.offset.is_some());
 
         let subtype = match part.ty {
-            Type::App => SubType::app(part.subtype.as_u8()),
-            Type::Data => SubType::data(part.subtype.as_u8()),
-            Type::Custom(..) => SubType::from(part.subtype.as_u8()),
+            Type::App => SubType::app(part.subtype.into()),
+            Type::Data => SubType::data(part.subtype.into()),
+            Type::Custom(..) => part.subtype,
         };
 
         Self {

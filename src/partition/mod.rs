@@ -16,8 +16,6 @@ mod de;
 #[cfg(not(feature = "std"))]
 type String = heapless::String<MAX_NAME_LEN>;
 
-#[cfg(feature = "std")]
-const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
 pub(crate) const MAX_NAME_LEN: usize = 16;
 #[cfg(feature = "std")]
 pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
@@ -25,7 +23,8 @@ pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
 /// Supported partition types
 ///
 /// User-defined partition types are allowed as long as their type ID does not
-/// confict with [`Type::App`] or [`Type::Data`].
+/// confict with [`Type::App`] or [`Type::Data`]. Custom type IDs must not
+/// exceed 0xFE.
 ///
 /// For additional information regarding the supported partition types, please
 /// refer to the ESP-IDF documentation:  
@@ -69,21 +68,22 @@ impl From<u8> for Type {
     }
 }
 
-impl Type {
-    /// Return the numeric partition type ID for the given type
-    pub fn as_u8(&self) -> u8 {
-        match self {
+impl From<Type> for u8 {
+    fn from(value: Type) -> Self {
+        match value {
             Type::App => 0x00,
             Type::Data => 0x01,
-            Type::Custom(ty) => *ty,
+            Type::Custom(ty) => ty,
         }
     }
+}
 
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+#[cfg(feature = "std")]
+impl Type {
     /// Return a `String` stating which subtypes are allowed for the given type.
     ///
     /// This is useful for error handling in dependent packages.
+    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn subtype_hint(&self) -> String {
         match self {
             Type::App => "'factory', 'ota_0' through 'ota_15', or 'test'".into(),
@@ -150,6 +150,16 @@ impl From<u8> for SubType {
     }
 }
 
+impl From<SubType> for u8 {
+    fn from(value: SubType) -> Self {
+        match value {
+            SubType::App(ty) => ty as u8,
+            SubType::Data(ty) => ty as u8,
+            SubType::Custom(ty) => ty,
+        }
+    }
+}
+
 impl SubType {
     /// Create a [SubType::App] variant from an integer value
     pub fn app(value: u8) -> Self {
@@ -159,15 +169,6 @@ impl SubType {
     /// Create a [SubType::Data] variant from an integer value
     pub fn data(value: u8) -> Self {
         Self::Data(DataType::from_repr(value as usize).unwrap())
-    }
-
-    /// Return the numeric partition type ID for the given subtype
-    pub fn as_u8(&self) -> u8 {
-        match self {
-            SubType::App(ty) => *ty as u8,
-            SubType::Data(ty) => *ty as u8,
-            SubType::Custom(ty) => *ty,
-        }
     }
 }
 
@@ -267,16 +268,19 @@ pub struct Partition {
 
 impl Partition {
     /// Construct a new partition
-    pub fn new(
-        name: String,
+    pub fn new<S>(
+        name: S,
         ty: Type,
         subtype: SubType,
         offset: u32,
         size: u32,
         encrypted: bool,
-    ) -> Self {
+    ) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
-            name,
+            name: name.into(),
             ty,
             subtype,
             offset,
@@ -320,15 +324,17 @@ impl Partition {
         max(self.offset, other.offset) < min(self.offset + self.size, other.offset + other.size)
     }
 
+    /// Write a record to the provided binary writer
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    /// Write a record to the provided binary writer
     pub fn write_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         W: std::io::Write,
     {
+        const MAGIC_BYTES: [u8; 2] = [0xAA, 0x50];
+
         writer.write_all(&MAGIC_BYTES)?;
-        writer.write_all(&[self.ty.as_u8(), self.subtype.as_u8()])?;
+        writer.write_all(&[self.ty.into(), self.subtype.into()])?;
         writer.write_all(&self.offset.to_le_bytes())?;
         writer.write_all(&self.size.to_le_bytes())?;
 
@@ -343,9 +349,9 @@ impl Partition {
         Ok(())
     }
 
+    /// Write a record to the provided [`csv::Writer`]
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    /// Write a record to the provided [`csv::Writer`]
     pub fn write_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
     where
         W: std::io::Write,
