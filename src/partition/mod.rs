@@ -16,9 +16,9 @@ mod de;
 #[cfg(not(feature = "std"))]
 type String = heapless::String<MAX_NAME_LEN>;
 
+pub(crate) const APP_PARTITION_ALIGNMENT: u32 = 0x10000;
+pub(crate) const DATA_PARTITION_ALIGNMENT: u32 = 0x1000;
 pub(crate) const MAX_NAME_LEN: usize = 16;
-#[cfg(feature = "std")]
-pub(crate) const PARTITION_ALIGNMENT: u32 = 0x10000;
 
 /// Supported partition types
 ///
