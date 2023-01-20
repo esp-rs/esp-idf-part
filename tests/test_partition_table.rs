@@ -167,3 +167,24 @@ fn test_error_when_partitions_overlapping() {
 
     assert_matches!(table, _expected);
 }
+
+#[test]
+fn test_empty_offsets_are_correctly_calculated() {
+    let csv = fs::read_to_string("tests/data/partition_table_unit_test_two_ota.csv").unwrap();
+    let table = PartitionTable::try_from(csv).unwrap();
+
+    let partitions = table.partitions();
+    let first = &partitions[0];
+
+    let mut offset = 0x9000;
+
+    assert_eq!(first.name(), "nvs");
+    assert_eq!(first.offset(), offset);
+    offset += first.size();
+
+    for i in 1..partitions.len() {
+        let next = &partitions[i];
+        assert_eq!(next.offset(), offset);
+        offset += next.size();
+    }
+}

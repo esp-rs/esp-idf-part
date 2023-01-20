@@ -26,6 +26,14 @@ pub enum Error {
         computed: Vec<u8>,
     },
 
+    /// Partition with type 'data' and subtype 'ota' must have size of 0x2000
+    /// (8k) bytes
+    #[cfg_attr(
+        feature = "std",
+        error("Partition with type 'data' and subtype 'ota' must have size of 0x2000 (8k) bytes")
+    )]
+    InvalidOtadataPartitionSize,
+
     /// The partition table is invalid
     #[cfg_attr(feature = "std", error("The partition table is invalid"))]
     InvalidPartitionTable,
@@ -43,6 +51,13 @@ pub enum Error {
         error("Multiple partitions with type 'app' and subtype 'factory' were found")
     )]
     MultipleFactoryPartitions,
+
+    /// Multiple partitions with type 'data' and subtype 'ota' were found
+    #[cfg_attr(
+        feature = "std",
+        error("Multiple partitions with type 'data' and subtype 'ota' were found")
+    )]
+    MultipleOtadataPartitions,
 
     /// No partition of type 'app' was found in the partition table
     #[cfg_attr(

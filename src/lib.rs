@@ -8,8 +8,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use core::ops::Rem as _;
 #[cfg(feature = "std")]
-use std::{io::Write as _, ops::Rem as _};
+use std::io::Write as _;
 
 #[cfg(feature = "std")]
 use deku::prelude::DekuContainerRead as _;
@@ -21,7 +22,7 @@ pub use self::{
 #[cfg(feature = "std")]
 use self::{
     hash_writer::HashWriter,
-    partition::{DeserializedBinPartition, DeserializedCsvPartition, PARTITION_ALIGNMENT},
+    partition::{DeserializedBinPartition, DeserializedCsvPartition},
 };
 
 mod error;
@@ -249,9 +250,11 @@ impl PartitionTable {
     }
 
     /// Validate a partition table
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    fn validate(&self) -> Result<(), Error> {
+    pub fn validate(&self) -> Result<(), Error> {
+        use self::partition::{APP_PARTITION_ALIGNMENT, DATA_PARTITION_ALIGNMENT};
+
+        const OTADATA_SIZE: u32 = 0x2000;
+
         // There must be at least one partition with type 'app'
         if self.find_by_type(Type::App).is_none() {
             return Err(Error::NoAppPartition);
@@ -271,7 +274,13 @@ impl PartitionTable {
         for partition in &self.partitions {
             // Partitions of type 'app' have to be placed at offsets aligned to 0x10000
             // (64k)
-            if partition.ty() == Type::App && partition.offset().rem(PARTITION_ALIGNMENT) != 0 {
+            if partition.ty() == Type::App && partition.offset().rem(APP_PARTITION_ALIGNMENT) != 0 {
+                return Err(Error::UnalignedPartition);
+            }
+
+            // Partitions of type 'data' have to be placed at offsets aligned to 0x1000 (4k)
+            if partition.ty() == Type::Data && partition.offset().rem(DATA_PARTITION_ALIGNMENT) != 0
+            {
                 return Err(Error::UnalignedPartition);
             }
         }
@@ -296,6 +305,21 @@ impl PartitionTable {
                     ));
                 }
             }
+        }
+
+        // Check that otadata should be unique
+        let ota_duplicates = self
+            .partitions
+            .iter()
+            .filter(|p| p.ty() == Type::Data && p.subtype() == SubType::Data(DataType::Ota))
+            .collect::<Vec<_>>();
+
+        if ota_duplicates.len() > 1 {
+            return Err(Error::MultipleOtadataPartitions);
+        }
+
+        if ota_duplicates.len() == 1 && ota_duplicates[0].size() != OTADATA_SIZE {
+            return Err(Error::InvalidOtadataPartitionSize);
         }
 
         Ok(())

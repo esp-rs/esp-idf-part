@@ -4,7 +4,7 @@ use deku::DekuRead;
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer};
 
-use super::{AppType, DataType, Partition, SubType, Type, MAX_NAME_LEN, PARTITION_ALIGNMENT};
+use super::{AppType, DataType, Partition, SubType, Type, APP_PARTITION_ALIGNMENT, MAX_NAME_LEN};
 
 #[derive(Debug, DekuRead)]
 #[deku(endian = "little", magic = b"\xAA\x50")]
@@ -85,7 +85,7 @@ impl DeserializedCsvPartition {
     pub(crate) fn fix_offset(&mut self, offset: u32) -> u32 {
         if self.offset.is_none() {
             let alignment = if self.ty == Type::App {
-                PARTITION_ALIGNMENT
+                APP_PARTITION_ALIGNMENT
             } else {
                 4 // 4 bytes, 32 bits
             };
