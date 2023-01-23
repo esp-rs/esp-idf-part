@@ -24,7 +24,7 @@ pub(crate) const MAX_NAME_LEN: usize = 16;
 ///
 /// User-defined partition types are allowed as long as their type ID does not
 /// confict with [`Type::App`] or [`Type::Data`]. Custom type IDs must not
-/// exceed 0xFE.
+/// exceed `0xFE`.
 ///
 /// For additional information regarding the supported partition types, please
 /// refer to the ESP-IDF documentation:  
@@ -255,7 +255,7 @@ pub enum DataType {
     Spiffs    = 0x82,
 }
 
-/// A partition
+/// A single partition definition
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Partition {
     name: String,

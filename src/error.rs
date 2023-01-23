@@ -3,7 +3,7 @@ type String = heapless::String<{ crate::partition::MAX_NAME_LEN }>;
 #[cfg(not(feature = "std"))]
 type Vec<T> = heapless::Vec<T, { crate::MD5_NUM_MAGIC_BYTES }>;
 
-/// Partition table error
+/// Partition table errors
 #[derive(Debug)]
 #[cfg_attr(feature = "std", derive(thiserror::Error))]
 pub enum Error {
