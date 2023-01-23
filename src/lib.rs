@@ -4,6 +4,37 @@
 //! For additional information regarding the partition table format please refer
 //! to the ESP-IDF documentation:  
 //! <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
+//!
+//! ## Features
+//!
+//! There is currently only a single feature, `std`; this feature is enabled by
+//! default.
+//!
+//! The following functionality is unavailable if the `std` feature is disabled:
+//!
+//! - (De)serializing a [PartitionTable] from/to CSV or binary format
+//! - Writing a [Partition] to a CSV or binary writer
+//!
+//! ## Examples
+//!
+//! ```rust,ignore
+//! // Read a partition table from a CSV file:
+//! let csv = std::fs::read_to_string("partitions.csv").unwrap();
+//! let table = PartitionTable::try_from_str(csv).unwrap();
+//!
+//! // Read a partition table from a binary file:
+//! let bin = std::fs::read("partitions.bin").unwrap();
+//! let table = PartitionTable::try_from_bytes(bin).unwrap();
+//!
+//! // Or, you can automatically determine which format is being passed:
+//! let table = PartitionTable::try_from(csv).unwrap();
+//! let table = PartitionTable::try_from(bin).unwrap();
+//!
+//! // You can find a partition by name, type, or subtype:
+//! let foo = table.find("factory").unwrap();
+//! let bar = table.find_by_type(Type::App).unwrap();
+//! let baz = table.find_by_type(Type::Data, DataType::Ota).unwrap();
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -38,7 +69,7 @@ const MD5_PART_MAGIC_BYTES: [u8; MD5_NUM_MAGIC_BYTES] = [
 ];
 const PARTITION_SIZE: usize = 32;
 
-/// A partition table
+/// A partition table; a collection of partitions
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PartitionTable {
     partitions: Vec<Partition>,
