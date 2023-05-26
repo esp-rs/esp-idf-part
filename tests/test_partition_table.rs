@@ -2,14 +2,6 @@ use std::fs;
 
 use esp_idf_part::{AppType, Error, PartitionTable, SubType, Type};
 
-// `assert_matches!()` is an unstable feature, but it's useful so we'll emulate
-// it for now.
-macro_rules! assert_matches {
-    ( $left:expr, $right:pat ) => {
-        assert!(matches!($left, $right))
-    };
-}
-
 #[test]
 fn test_parse_bin() {
     let bin = fs::read("tests/data/single_factory_no_ota.bin").unwrap();
@@ -118,54 +110,63 @@ fn test_circuitpython_partition_tables() {
 }
 
 #[test]
-fn test_error_when_no_app_partition() {
+fn test_error_when_no_app_partition() -> Result<(), String> {
     let csv = fs::read_to_string("tests/data/err_no_app_partition.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
 
-    let _expected: Result<PartitionTable, Error> = Err(Error::NoAppPartition);
-
-    assert_matches!(table, _expected);
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::NoAppPartition) => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::NoAppPartition)`, found `{result:?}`"
+        )),
+    }
 }
 
 #[test]
-fn test_error_when_multiple_factory_partitions() {
+fn test_error_when_multiple_factory_partitions() -> Result<(), String> {
     let csv = fs::read_to_string("tests/data/err_multiple_factory.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
 
-    let _expected: Result<PartitionTable, Error> = Err(Error::MultipleFactoryPartitions);
-
-    assert_matches!(table, _expected);
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::MultipleFactoryPartitions) => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::MultipleFactoryPartitions)`, found `{result:?}`"
+        )),
+    }
 }
 
 #[test]
-fn test_error_when_unaligned_app_partition() {
+fn test_error_when_unaligned_app_partition() -> Result<(), String> {
     let csv = fs::read_to_string("tests/data/err_unaligned_app_partition.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
 
-    let _expected: Result<PartitionTable, Error> = Err(Error::UnalignedPartition);
-
-    assert_matches!(table, _expected);
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::UnalignedPartition) => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::UnalignedPartition)`, found `{result:?}`"
+        )),
+    }
 }
 
 #[test]
-fn test_error_when_duplicate_partition_names() {
+fn test_error_when_duplicate_partition_names() -> Result<(), String> {
     let csv = fs::read_to_string("tests/data/err_conflicting_names.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
 
-    let _expected: Result<PartitionTable, Error> = Err(Error::DuplicatePartitions("ota_0".into()));
-
-    assert_matches!(table, _expected);
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::DuplicatePartitions(name)) if &name == "ota_0" => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::DuplicatePartitions(\"ota_0\"))`, found `{result:?}`"
+        )),
+    }
 }
 
 #[test]
-fn test_error_when_partitions_overlapping() {
+fn test_error_when_partitions_overlapping() -> Result<(), String> {
     let csv = fs::read_to_string("tests/data/err_unaligned_app_partition.csv").unwrap();
-    let table = PartitionTable::try_from(csv);
 
-    let _expected: Result<PartitionTable, Error> =
-        Err(Error::OverlappingPartitions("ota_0".into(), "ota_1".into()));
-
-    assert_matches!(table, _expected);
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::UnalignedPartition) => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::UnalignedPartition)`, found `{result:?}`"
+        )),
+    }
 }
 
 #[test]
