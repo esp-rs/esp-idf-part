@@ -1,6 +1,6 @@
 use std::fs;
 
-use esp_idf_part::{AppType, Error, PartitionTable, SubType, Type};
+use esp_idf_part::{AppType, Error, Partition, PartitionTable, SubType, Type};
 
 #[test]
 fn test_parse_bin() {
@@ -187,5 +187,24 @@ fn test_empty_offsets_are_correctly_calculated() {
         let next = &partitions[i];
         assert_eq!(next.offset(), offset);
         offset += next.size();
+    }
+}
+
+#[test]
+fn test_maximum_partition_size_is_enforced() -> Result<(), String> {
+    let table = PartitionTable::new(vec![Partition::new(
+        "factory",
+        Type::App,
+        SubType::App(AppType::Factory),
+        0,
+        32 * 1024 * 1024, // 32MB, too big!
+        false,
+    )]);
+
+    match table.validate() {
+        Err(Error::PartitionTooLarge(name)) if &name == "factory" => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::PartitionTooLarge(\"factory\"))`, found `{result:?}`"
+        )),
     }
 }

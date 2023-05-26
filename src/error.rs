@@ -77,6 +77,13 @@ pub enum Error {
     )]
     OverlappingPartitions(String, String),
 
+    /// Partition is above the maximum supported size of 16MB
+    #[cfg_attr(
+        feature = "std",
+        error("Partition larger than maximum supported size of 16MB: '{0}'")
+    )]
+    PartitionTooLarge(String),
+
     /// The partition is not correctly aligned
     #[cfg_attr(feature = "std", error("The partition is not correctly aligned"))]
     UnalignedPartition,
