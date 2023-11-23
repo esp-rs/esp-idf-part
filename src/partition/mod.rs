@@ -248,7 +248,8 @@ pub enum DataType {
     Nvs       = 0x02,
     Coredump  = 0x03,
     NvsKeys   = 0x04,
-    #[serde(rename = "efuse"), strum(serialize = "efuse")]
+    #[serde(rename = "efuse")]
+    #[strum(serialize = "efuse")]
     EfuseEm   = 0x05,
     Undefined = 0x06,
     Esphttpd  = 0x80,
