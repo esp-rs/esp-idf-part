@@ -248,11 +248,14 @@ pub enum DataType {
     Nvs       = 0x02,
     Coredump  = 0x03,
     NvsKeys   = 0x04,
+    #[serde(rename = "efuse")]
+    #[strum(serialize = "efuse")]
     EfuseEm   = 0x05,
     Undefined = 0x06,
     Esphttpd  = 0x80,
     Fat       = 0x81,
     Spiffs    = 0x82,
+    Littlefs  = 0x83,
 }
 
 /// A single partition definition
