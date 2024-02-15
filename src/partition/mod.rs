@@ -5,7 +5,7 @@ use deku::{DekuEnumExt, DekuError, DekuRead};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use strum::IntoEnumIterator;
-use strum::{EnumIter, EnumString, EnumVariantNames, FromRepr};
+use strum::{EnumIter, EnumString, FromRepr, VariantNames};
 
 #[cfg(feature = "std")]
 pub(crate) use self::de::{DeserializedBinPartition, DeserializedCsvPartition};
@@ -27,7 +27,7 @@ pub(crate) const MAX_NAME_LEN: usize = 16;
 /// exceed `0xFE`.
 ///
 /// For additional information regarding the supported partition types, please
-/// refer to the ESP-IDF documentation:  
+/// refer to the ESP-IDF documentation:
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(
@@ -107,7 +107,7 @@ impl Type {
 /// is [`Type::Custom`].
 ///
 /// For additional information regarding the supported partition subtypes,
-/// please refer to the ESP-IDF documentation:  
+/// please refer to the ESP-IDF documentation:
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -174,7 +174,7 @@ impl SubType {
 
 /// Partition sub-types which can be used with [`Type::App`] partitions
 ///
-/// A full list of support subtypes can be found in the ESP-IDF documentation:  
+/// A full list of support subtypes can be found in the ESP-IDF documentation:
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[allow(non_camel_case_types)]
 #[derive(
@@ -186,7 +186,7 @@ impl SubType {
     Deserialize,
     EnumIter,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
     FromRepr,
     Serialize,
 )]
@@ -220,7 +220,7 @@ pub enum AppType {
 
 /// Partition sub-types which can be used with [`Type::Data`] partitions
 ///
-/// A full list of support subtypes can be found in the ESP-IDF documentation:  
+/// A full list of support subtypes can be found in the ESP-IDF documentation:
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype>
 #[derive(
     Debug,
@@ -231,7 +231,7 @@ pub enum AppType {
     Deserialize,
     EnumIter,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
     FromRepr,
     Serialize,
 )]
