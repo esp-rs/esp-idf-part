@@ -334,7 +334,10 @@ impl PartitionTable {
                 return Err(Error::PartitionTooLarge(partition.name()));
             }
 
-            if partition.ty() == Type::Data && partition.subtype() == SubType::Data(DataType::Ota) && partition.size() != OTADATA_SIZE {
+            if partition.ty() == Type::Data
+                && partition.subtype() == SubType::Data(DataType::Ota)
+                && partition.size() != OTADATA_SIZE
+            {
                 return Err(Error::InvalidOtadataPartitionSize);
             }
         }

@@ -121,7 +121,6 @@ fn test_large_data_partition() {
     assert_eq!(partitions[2].name(), "factory");
     assert_eq!(partitions[3].name(), "storage");
     assert_eq!(partitions[3].size(), 29 * 1024 * 1024);
-
 }
 
 #[test]
