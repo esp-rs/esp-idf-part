@@ -34,10 +34,6 @@ pub enum Error {
     )]
     InvalidOtadataPartitionSize,
 
-    /// The partition table is invalid
-    #[cfg_attr(feature = "std", error("The partition table is invalid"))]
-    InvalidPartitionTable,
-
     /// The length of the binary data is not a multiple of 32
     #[cfg_attr(
         feature = "std",
