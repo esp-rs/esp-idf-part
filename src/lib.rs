@@ -100,13 +100,11 @@ impl PartitionTable {
 
         // If a partition table was detected from ESP-IDF (eg. using `esp-idf-sys`) then
         // it will be passed in its _binary_ form. Otherwise, it will be provided as a
-        // CSV.
-        if let Ok(part_table) = Self::try_from_bytes(&*input) {
-            Ok(part_table)
-        } else if let Ok(part_table) = Self::try_from_str(String::from_utf8(input)?) {
-            Ok(part_table)
+        // CSV. A binary partition table starts with 0xAA 0x50 magic bytes.
+        if input[..2] == [0xAA, 0x50] {
+            Self::try_from_bytes(&*input)
         } else {
-            Err(Error::InvalidPartitionTable)
+            Self::try_from_str(String::from_utf8(input)?)
         }
     }
 
