@@ -110,6 +110,21 @@ fn test_circuitpython_partition_tables() {
 }
 
 #[test]
+fn test_large_data_partition() {
+    let csv = fs::read_to_string("tests/data/large_data_partition.csv").unwrap();
+    let table = PartitionTable::try_from(csv).unwrap();
+    let partitions = table.partitions();
+
+    assert_eq!(partitions.len(), 4);
+    assert_eq!(partitions[0].name(), "nvs");
+    assert_eq!(partitions[1].name(), "phy_init");
+    assert_eq!(partitions[2].name(), "factory");
+    assert_eq!(partitions[3].name(), "storage");
+    assert_eq!(partitions[3].size(), 29 * 1024 * 1024);
+
+}
+
+#[test]
 fn test_error_when_no_app_partition() -> Result<(), String> {
     let csv = fs::read_to_string("tests/data/err_no_app_partition.csv").unwrap();
 
@@ -129,6 +144,42 @@ fn test_error_when_multiple_factory_partitions() -> Result<(), String> {
         Err(Error::MultipleFactoryPartitions) => Ok(()),
         result => Err(format!(
             "expected `Err(Error::MultipleFactoryPartitions)`, found `{result:?}`"
+        )),
+    }
+}
+
+#[test]
+fn test_error_factory_partition_too_large() -> Result<(), String> {
+    let csv = fs::read_to_string("tests/data/err_factory_too_large.csv").unwrap();
+
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::PartitionTooLarge(name)) if name == "factory" => Ok(()),
+        result => Err(format!(
+            "expected `Err(PartitionTooLarge(\"factory\"))`, found `{result:?}`"
+        )),
+    }
+}
+
+#[test]
+fn test_error_when_multiple_otadata_partitions() -> Result<(), String> {
+    let csv = fs::read_to_string("tests/data/err_multiple_otadata.csv").unwrap();
+
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::MultipleOtadataPartitions) => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::MultipleOtadataPartitions)`, found `{result:?}`"
+        )),
+    }
+}
+
+#[test]
+fn test_error_when_otadata_size_invalid() -> Result<(), String> {
+    let csv = fs::read_to_string("tests/data/err_otadata_invalid_size.csv").unwrap();
+
+    match PartitionTable::try_from_str(csv) {
+        Err(Error::InvalidOtadataPartitionSize) => Ok(()),
+        result => Err(format!(
+            "expected `Err(Error::InvalidOtadataPartitionSize)`, found `{result:?}`"
         )),
     }
 }
