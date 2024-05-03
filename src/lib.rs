@@ -285,7 +285,7 @@ impl PartitionTable {
     pub fn validate(&self) -> Result<(), Error> {
         use self::partition::{APP_PARTITION_ALIGNMENT, DATA_PARTITION_ALIGNMENT};
 
-        const MAX_PART_SIZE: u32 = 0x100_0000; // 16MB
+        const MAX_APP_PART_SIZE: u32 = 0x100_0000; // 16MB
         const OTADATA_SIZE: u32 = 0x2000; // 8kB
 
         // There must be at least one partition with type 'app'
@@ -317,9 +317,9 @@ impl PartitionTable {
                 return Err(Error::UnalignedPartition);
             }
 
-            // Partitions cannot exceed 16MB; see:
+            // App partitions cannot exceed 16MB; see:
             // https://github.com/espressif/esp-idf/blob/c212305/components/bootloader_support/src/esp_image_format.c#L158-L161
-            if partition.size() > MAX_PART_SIZE {
+            if partition.ty() == Type::App && partition.size() > MAX_APP_PART_SIZE {
                 return Err(Error::PartitionTooLarge(partition.name()));
             }
         }
