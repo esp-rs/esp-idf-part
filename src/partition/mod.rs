@@ -1,7 +1,7 @@
 use core::cmp::{max, min};
 
 #[cfg(feature = "std")]
-use deku::{DekuEnumExt, DekuError, DekuRead};
+use deku::{DekuError, DekuRead, DekuReader};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use strum::IntoEnumIterator;
@@ -33,7 +33,7 @@ pub(crate) const MAX_NAME_LEN: usize = 16;
 #[cfg_attr(
     feature = "std",
     derive(DekuRead),
-    deku(endian = "little", type = "u8")
+    deku(endian = "little", id_type = "u8")
 )]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
@@ -193,7 +193,7 @@ impl SubType {
 #[cfg_attr(
     feature = "std",
     derive(DekuRead),
-    deku(endian = "little", type = "u8")
+    deku(endian = "little", id_type = "u8")
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -238,7 +238,7 @@ pub enum AppType {
 #[cfg_attr(
     feature = "std",
     derive(DekuRead),
-    deku(endian = "little", type = "u8")
+    deku(endian = "little", id_type = "u8")
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
