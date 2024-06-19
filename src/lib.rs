@@ -283,7 +283,7 @@ impl PartitionTable {
     pub fn validate(&self) -> Result<(), Error> {
         use self::partition::{APP_PARTITION_ALIGNMENT, DATA_PARTITION_ALIGNMENT};
 
-        const MAX_PART_SIZE: u32 = 0x100_0000; // 16MB
+        const MAX_APP_PART_SIZE: u32 = 0x100_0000; // 16MB
         const OTADATA_SIZE: u32 = 0x2000; // 8kB
 
         // There must be at least one partition with type 'app'
@@ -302,6 +302,17 @@ impl PartitionTable {
             return Err(Error::MultipleFactoryPartitions);
         }
 
+        // There can be at most one partition of type 'data' and of subtype 'otadata'
+        if self
+            .partitions
+            .iter()
+            .filter(|p| p.ty() == Type::Data && p.subtype() == SubType::Data(DataType::Ota))
+            .count()
+            > 1
+        {
+            return Err(Error::MultipleOtadataPartitions);
+        }
+
         for partition in &self.partitions {
             // Partitions of type 'app' have to be placed at offsets aligned to 0x10000
             // (64k)
@@ -315,10 +326,17 @@ impl PartitionTable {
                 return Err(Error::UnalignedPartition);
             }
 
-            // Partitions cannot exceed 16MB; see:
+            // App partitions cannot exceed 16MB; see:
             // https://github.com/espressif/esp-idf/blob/c212305/components/bootloader_support/src/esp_image_format.c#L158-L161
-            if partition.size() > MAX_PART_SIZE {
+            if partition.ty() == Type::App && partition.size() > MAX_APP_PART_SIZE {
                 return Err(Error::PartitionTooLarge(partition.name()));
+            }
+
+            if partition.ty() == Type::Data
+                && partition.subtype() == SubType::Data(DataType::Ota)
+                && partition.size() != OTADATA_SIZE
+            {
+                return Err(Error::InvalidOtadataPartitionSize);
             }
         }
 
@@ -342,21 +360,6 @@ impl PartitionTable {
                     ));
                 }
             }
-        }
-
-        // Check that otadata should be unique
-        let ota_duplicates = self
-            .partitions
-            .iter()
-            .filter(|p| p.ty() == Type::Data && p.subtype() == SubType::Data(DataType::Ota))
-            .collect::<Vec<_>>();
-
-        if ota_duplicates.len() > 1 {
-            return Err(Error::MultipleOtadataPartitions);
-        }
-
-        if ota_duplicates.len() == 1 && ota_duplicates[0].size() != OTADATA_SIZE {
-            return Err(Error::InvalidOtadataPartitionSize);
         }
 
         Ok(())
