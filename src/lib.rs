@@ -243,7 +243,7 @@ impl PartitionTable {
         let (writer, hash) = hasher.compute();
 
         writer.write_all(&MD5_PART_MAGIC_BYTES)?;
-        writer.write_all(&hash.as_slice())?;
+        writer.write_all(hash.as_slice())?;
 
         let written = self.partitions.len() * PARTITION_SIZE + 32;
         let padding = std::iter::repeat(0xFF)
@@ -372,7 +372,8 @@ impl PartitionTable {
 mod hash_writer {
     use md5::{
         digest::{consts::U16, generic_array::GenericArray},
-        Digest, Md5,
+        Digest,
+        Md5,
     };
 
     pub(crate) struct HashWriter<W> {
