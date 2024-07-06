@@ -2,7 +2,7 @@
 //! binary and CSV formats as described in the ESP-IDF documentation.
 //!
 //! For additional information regarding the partition table format please refer
-//! to the ESP-IDF documentation:  
+//! to the ESP-IDF documentation:
 //! <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
 //!
 //! ## Features
@@ -88,7 +88,7 @@ impl PartitionTable {
     /// Attempt to parse either a binary or CSV partition table from the given
     /// input.
     ///
-    /// For more information on the partition table format see:  
+    /// For more information on the partition table format see:
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
@@ -110,7 +110,7 @@ impl PartitionTable {
 
     /// Attempt to parse a binary partition table from the given bytes.
     ///
-    /// For more information on the partition table format see:  
+    /// For more information on the partition table format see:
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
@@ -118,6 +118,8 @@ impl PartitionTable {
     where
         B: Into<Vec<u8>>,
     {
+        use md5::Digest;
+
         const END_MARKER: [u8; 32] = [0xFF; 32];
 
         let data = bytes.into();
@@ -127,7 +129,7 @@ impl PartitionTable {
             return Err(Error::LengthNotMultipleOf32);
         }
 
-        let mut ctx = md5::Context::new();
+        let mut ctx = md5::Md5::new();
 
         let mut partitions = vec![];
         for line in data.chunks_exact(PARTITION_SIZE) {
@@ -135,9 +137,9 @@ impl PartitionTable {
                 // The first 16 bytes are just the marker. The next 16 bytes is
                 // the actual MD5 string.
                 let digest_in_file = &line[16..32];
-                let digest_computed = *ctx.clone().compute();
+                let digest_computed = ctx.clone().finalize();
 
-                if digest_computed != digest_in_file {
+                if digest_computed.as_slice() != digest_in_file {
                     return Err(Error::InvalidChecksum {
                         expected: digest_in_file.to_vec(),
                         computed: digest_computed.to_vec(),
@@ -149,7 +151,7 @@ impl PartitionTable {
                 let partition = Partition::from(partition);
                 partitions.push(partition);
 
-                ctx.consume(line);
+                ctx.update(line);
             } else {
                 // We're finished parsing the binary data, time to construct and return the
                 // [PartitionTable].
@@ -165,7 +167,7 @@ impl PartitionTable {
 
     /// Attempt to parse a CSV partition table from the given string.
     ///
-    /// For more information on the partition table format see:  
+    /// For more information on the partition table format see:
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
@@ -241,7 +243,7 @@ impl PartitionTable {
         let (writer, hash) = hasher.compute();
 
         writer.write_all(&MD5_PART_MAGIC_BYTES)?;
-        writer.write_all(&hash.0)?;
+        writer.write_all(&hash.as_slice())?;
 
         let written = self.partitions.len() * PARTITION_SIZE + 32;
         let padding = std::iter::repeat(0xFF)
@@ -368,11 +370,14 @@ impl PartitionTable {
 
 #[cfg(feature = "std")]
 mod hash_writer {
-    use md5::{Context, Digest};
+    use md5::{
+        digest::{consts::U16, generic_array::GenericArray},
+        Digest, Md5,
+    };
 
     pub(crate) struct HashWriter<W> {
         inner: W,
-        hasher: Context,
+        hasher: Md5,
     }
 
     impl<W> std::io::Write for HashWriter<W>
@@ -380,7 +385,7 @@ mod hash_writer {
         W: std::io::Write,
     {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.hasher.write_all(buf)?;
+            self.hasher.update(buf);
             self.inner.write(buf)
         }
 
@@ -396,12 +401,12 @@ mod hash_writer {
         pub fn new(inner: W) -> Self {
             Self {
                 inner,
-                hasher: Context::new(),
+                hasher: Md5::new(),
             }
         }
 
-        pub fn compute(self) -> (W, Digest) {
-            (self.inner, self.hasher.compute())
+        pub fn compute(self) -> (W, GenericArray<u8, U16>) {
+            (self.inner, self.hasher.finalize())
         }
     }
 }
