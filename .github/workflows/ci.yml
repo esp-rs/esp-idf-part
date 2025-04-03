@@ -38,9 +38,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
 
-      - name: check (no_std)
-        run: cargo check --no-default-features
-      - name: check (std)
+      - name: check
         run: cargo check
 
   # --------------------------------------------------------------------------

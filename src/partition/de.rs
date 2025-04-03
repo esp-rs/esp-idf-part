@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use deku::{DekuRead, DekuReader};
+use deku::DekuRead;
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer};
 
