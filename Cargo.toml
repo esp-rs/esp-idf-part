@@ -11,6 +11,7 @@ keywords     = ["esp-idf", "partition", "partition-table"]
 categories   = ["embedded", "parsing"]
 
 [dependencies]
+bitflags    = { version = "2.9.0", features = ["serde"] }
 csv         = "1.3.1"
 deku        = "0.18.1"
 md-5        = "0.10.6"
