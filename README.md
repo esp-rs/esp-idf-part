@@ -16,10 +16,6 @@ This library is reasonably well tested, however if you have a partition table wh
 
 - [ESP-IDF Partition Table API Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html)
 
-## Features
-
-This library has only one feature, `std`, which is enabled by default. While this library _does_ support `no_std`, (de)serialization functionality is not supported without `std`.
-
 ## License
 
 Licensed under either of:
