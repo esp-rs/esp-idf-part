@@ -36,14 +36,8 @@
 //! let baz = table.find_by_type(Type::Data, DataType::Ota).unwrap();
 //! ```
 
-#![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
+use std::{io::Write as _, ops::Rem as _};
 
-use core::ops::Rem as _;
-#[cfg(feature = "std")]
-use std::io::Write as _;
-
-#[cfg(feature = "std")]
 use deku::prelude::DekuContainerRead as _;
 use serde::{Deserialize, Serialize};
 
@@ -51,7 +45,6 @@ pub use self::{
     error::Error,
     partition::{AppType, DataType, Partition, SubType, Type},
 };
-#[cfg(feature = "std")]
 use self::{
     hash_writer::HashWriter,
     partition::{DeserializedBinPartition, DeserializedCsvPartition},
@@ -60,11 +53,7 @@ use self::{
 mod error;
 mod partition;
 
-#[cfg(not(feature = "std"))]
-type Vec<T> = heapless::Vec<T, PARTITION_SIZE>;
-
 pub(crate) const MD5_NUM_MAGIC_BYTES: usize = 16;
-#[cfg(feature = "std")]
 const MD5_PART_MAGIC_BYTES: [u8; MD5_NUM_MAGIC_BYTES] = [
     0xEB, 0xEB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 ];
@@ -90,8 +79,6 @@ impl PartitionTable {
     ///
     /// For more information on the partition table format see:
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn try_from<D>(data: D) -> Result<Self, Error>
     where
         D: Into<Vec<u8>>,
@@ -112,8 +99,6 @@ impl PartitionTable {
     ///
     /// For more information on the partition table format see:
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn try_from_bytes<B>(bytes: B) -> Result<Self, Error>
     where
         B: Into<Vec<u8>>,
@@ -169,8 +154,6 @@ impl PartitionTable {
     ///
     /// For more information on the partition table format see:
     /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html>
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn try_from_str<S>(string: S) -> Result<Self, Error>
     where
         S: Into<String>,
@@ -227,8 +210,6 @@ impl PartitionTable {
     }
 
     /// Convert a partition table to binary
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn to_bin(&self) -> Result<Vec<u8>, Error> {
         const MAX_PARTITION_LENGTH: usize = 0xC00;
         const PARTITION_TABLE_SIZE: usize = 0x1000;
@@ -256,8 +237,6 @@ impl PartitionTable {
     }
 
     /// Convert a partition table to a CSV string
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn to_csv(&self) -> Result<String, Error> {
         let mut csv = String::new();
 
@@ -368,7 +347,6 @@ impl PartitionTable {
     }
 }
 
-#[cfg(feature = "std")]
 mod hash_writer {
     use md5::{
         digest::{consts::U16, generic_array::GenericArray},

@@ -1,20 +1,12 @@
 use core::cmp::{max, min};
 
-#[cfg(feature = "std")]
-use deku::{DekuError, DekuRead, DekuReader};
+use deku::DekuRead;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "std")]
-use strum::IntoEnumIterator;
-use strum::{EnumIter, EnumString, FromRepr, VariantNames};
+use strum::{EnumIter, EnumString, FromRepr, IntoEnumIterator, VariantNames};
 
-#[cfg(feature = "std")]
 pub(crate) use self::de::{DeserializedBinPartition, DeserializedCsvPartition};
 
-#[cfg(feature = "std")]
 mod de;
-
-#[cfg(not(feature = "std"))]
-type String = heapless::String<MAX_NAME_LEN>;
 
 pub(crate) const APP_PARTITION_ALIGNMENT: u32 = 0x10000;
 pub(crate) const DATA_PARTITION_ALIGNMENT: u32 = 0x1000;
@@ -29,19 +21,15 @@ pub(crate) const MAX_NAME_LEN: usize = 16;
 /// For additional information regarding the supported partition types, please
 /// refer to the ESP-IDF documentation:
 /// <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#type-field>
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[cfg_attr(
-    feature = "std",
-    derive(DekuRead),
-    deku(endian = "little", id_type = "u8")
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, DekuRead)]
+#[deku(endian = "little", id_type = "u8")]
 #[serde(rename_all = "lowercase")]
 pub enum Type {
-    #[cfg_attr(feature = "std", deku(id = "0x00"))]
+    #[deku(id = "0x00")]
     App,
-    #[cfg_attr(feature = "std", deku(id = "0x01"))]
+    #[deku(id = "0x01")]
     Data,
-    #[cfg_attr(feature = "std", deku(id_pat = "0x02..=0xFE"))]
+    #[deku(id_pat = "0x02..=0xFE")]
     Custom(u8),
 }
 
@@ -78,12 +66,10 @@ impl From<Type> for u8 {
     }
 }
 
-#[cfg(feature = "std")]
 impl Type {
     /// Return a `String` stating which subtypes are allowed for the given type.
     ///
     /// This is useful for error handling in dependent packages.
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn subtype_hint(&self) -> String {
         match self {
             Type::App => "'factory', 'ota_0' through 'ota_15', or 'test'".into(),
@@ -189,12 +175,9 @@ impl SubType {
     VariantNames,
     FromRepr,
     Serialize,
+    DekuRead,
 )]
-#[cfg_attr(
-    feature = "std",
-    derive(DekuRead),
-    deku(endian = "little", id_type = "u8")
-)]
+#[deku(endian = "little", id_type = "u8")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AppType {
@@ -234,12 +217,9 @@ pub enum AppType {
     VariantNames,
     FromRepr,
     Serialize,
+    DekuRead,
 )]
-#[cfg_attr(
-    feature = "std",
-    derive(DekuRead),
-    deku(endian = "little", id_type = "u8")
-)]
+#[deku(endian = "little", id_type = "u8")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum DataType {
@@ -328,8 +308,6 @@ impl Partition {
     }
 
     /// Write a record to the provided binary writer
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn write_bin<W>(&self, writer: &mut W) -> std::io::Result<()>
     where
         W: std::io::Write,
@@ -353,8 +331,6 @@ impl Partition {
     }
 
     /// Write a record to the provided [`csv::Writer`]
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     pub fn write_csv<W>(&self, csv: &mut csv::Writer<W>) -> std::io::Result<()>
     where
         W: std::io::Write,
