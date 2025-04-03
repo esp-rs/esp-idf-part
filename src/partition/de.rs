@@ -4,7 +4,16 @@ use deku::DekuRead;
 use regex::Regex;
 use serde::{de::Error, Deserialize, Deserializer};
 
-use super::{AppType, DataType, Partition, SubType, Type, APP_PARTITION_ALIGNMENT, MAX_NAME_LEN};
+use super::{
+    AppType,
+    DataType,
+    Flags,
+    Partition,
+    SubType,
+    Type,
+    APP_PARTITION_ALIGNMENT,
+    MAX_NAME_LEN,
+};
 
 #[derive(Debug, DekuRead)]
 #[deku(endian = "little", magic = b"\xAA\x50")]
@@ -14,7 +23,7 @@ pub(crate) struct DeserializedBinPartition {
     offset: Option<u32>,
     size: u32,
     name: [u8; MAX_NAME_LEN],
-    encrypted: bool,
+    flags: u32,
 }
 
 impl From<DeserializedBinPartition> for Partition {
@@ -37,7 +46,7 @@ impl From<DeserializedBinPartition> for Partition {
             subtype,
             offset: part.offset.unwrap(),
             size: part.size,
-            encrypted: part.encrypted,
+            flags: Flags::from_bits(part.flags).unwrap(),
         }
     }
 }
@@ -56,7 +65,7 @@ pub(crate) struct DeserializedCsvPartition {
     size: u32,
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_partition_flags")]
-    encrypted: bool,
+    flags: u32,
 }
 
 impl From<DeserializedCsvPartition> for Partition {
@@ -75,7 +84,7 @@ impl From<DeserializedCsvPartition> for Partition {
             subtype,
             offset: part.offset.unwrap(),
             size: part.size,
-            encrypted: part.encrypted,
+            flags: Flags::from_bits(part.flags).unwrap(),
         }
     }
 }
@@ -175,13 +184,23 @@ where
         .ok_or_else(|| Error::custom("invalid partition size/offset format"))
 }
 
-fn deserialize_partition_flags<'de, D>(deserializer: D) -> Result<bool, D::Error>
+fn deserialize_partition_flags<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let buf = String::deserialize(deserializer)?;
+    let mut flags = Flags::empty();
 
-    Ok(buf.trim_matches(char::from(0)) == "encrypted")
+    let buf = String::deserialize(deserializer)?;
+    for flag in buf.split(':') {
+        match flag {
+            "" => continue,
+            "encrypted" => flags |= Flags::ENCRYPTED,
+            "readonly" => flags |= Flags::READONLY,
+            other => return Err(Error::custom(format!("invalid partition flag '{other}'"))),
+        }
+    }
+
+    Ok(flags.bits())
 }
 
 fn deserialize_partition_offset_or_size<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
@@ -282,14 +301,29 @@ mod tests {
 
     #[test]
     fn test_deserialize_partition_flags() {
-        let deserializer: StrDeserializer<ValueError> = "encrypted".into_deserializer();
-        assert_eq!(deserialize_partition_flags(deserializer), Ok(true));
-
         let deserializer: StrDeserializer<ValueError> = "".into_deserializer();
-        assert_eq!(deserialize_partition_flags(deserializer), Ok(false));
+        assert_eq!(
+            deserialize_partition_flags(deserializer),
+            Ok(Flags::empty().bits())
+        );
+
+        let deserializer: StrDeserializer<ValueError> = "encrypted".into_deserializer();
+        assert_eq!(
+            deserialize_partition_flags(deserializer),
+            Ok(Flags::ENCRYPTED.bits())
+        );
+
+        let deserializer: StrDeserializer<ValueError> = "encrypted:readonly".into_deserializer();
+        assert_eq!(
+            deserialize_partition_flags(deserializer),
+            Ok((Flags::ENCRYPTED | Flags::READONLY).bits())
+        );
 
         let deserializer: StrDeserializer<ValueError> = "foo".into_deserializer();
-        assert_eq!(deserialize_partition_flags(deserializer), Ok(false));
+        assert_eq!(
+            deserialize_partition_flags(deserializer),
+            Err(Error::custom("invalid partition flag 'foo'"))
+        );
     }
 
     #[test]

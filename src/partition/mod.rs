@@ -277,19 +277,12 @@ pub struct Partition {
     subtype: SubType,
     offset: u32,
     size: u32,
-    encrypted: bool,
+    flags: Flags,
 }
 
 impl Partition {
     /// Construct a new partition
-    pub fn new<S>(
-        name: S,
-        ty: Type,
-        subtype: SubType,
-        offset: u32,
-        size: u32,
-        encrypted: bool,
-    ) -> Self
+    pub fn new<S>(name: S, ty: Type, subtype: SubType, offset: u32, size: u32, flags: Flags) -> Self
     where
         S: Into<String>,
     {
@@ -299,7 +292,7 @@ impl Partition {
             subtype,
             offset,
             size,
-            encrypted,
+            flags,
         }
     }
 
@@ -328,9 +321,9 @@ impl Partition {
         self.size
     }
 
-    /// Is the partition encrypted?
-    pub fn encrypted(&self) -> bool {
-        self.encrypted
+    /// Return the partition's flags
+    pub fn flags(&self) -> Flags {
+        self.flags
     }
 
     /// Does this partition overlap with another?
@@ -356,7 +349,7 @@ impl Partition {
         }
         writer.write_all(&name_bytes)?;
 
-        writer.write_all(&(self.encrypted as u32).to_le_bytes())?;
+        writer.write_all(&self.flags.bits().to_le_bytes())?;
 
         Ok(())
     }
@@ -366,7 +359,15 @@ impl Partition {
     where
         W: std::io::Write,
     {
-        let flags = if self.encrypted { "encrypted" } else { "" };
+        let mut flags = Vec::<&str>::new();
+        if self.flags.contains(Flags::ENCRYPTED) {
+            flags.push("encrypted");
+        }
+        if self.flags.contains(Flags::READONLY) {
+            flags.push("readonly");
+        }
+
+        let flags = flags.join(":");
 
         csv.write_record(&[
             self.name(),
@@ -374,7 +375,7 @@ impl Partition {
             self.subtype.to_string(),
             format!("{:#x}", self.offset),
             format!("{:#x}", self.size),
-            flags.to_string(),
+            flags,
         ])?;
 
         Ok(())
