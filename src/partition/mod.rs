@@ -238,6 +238,37 @@ pub enum DataType {
     Littlefs  = 0x83,
 }
 
+bitflags::bitflags! {
+    /// Supported partition flags
+    ///
+    /// Two flags are currently supported, `encrypted` and `readonly`:
+    ///
+    /// - If `encrypted` flag is set, the partition will be encrypted if [Flash
+    ///   Encryption] is enabled.
+    ///     - Note: `app` type partitions will always be encrypted, regardless of
+    ///       whether this flag is set or not.
+    /// - If `readonly` flag is set, the partition will be read-only. This flag is
+    ///   only supported for `data` type partitions except `ota` and `coredump`
+    ///   subtypes. This flag can help to protect against accidental writes to a
+    ///   partition that contains critical device-specific configuration data, e.g.
+    ///   factory data partition.
+    ///
+    /// You can specify multiple flags by separating them with a colon. For example,
+    /// `encrypted:readonly`.
+    ///
+    /// For more information, see the ESP-IDF documentation:
+    /// <https://docs.espressif.com/projects/esp-idf/en/v5.3.1/esp32/api-guides/partition-tables.html#flags>
+    ///
+    /// [Flash Encryption]: https://docs.espressif.com/projects/esp-idf/en/v5.3.1/esp32/security/flash-encryption.html
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+    pub struct Flags: u32 {
+        /// Encrypted partition
+        const ENCRYPTED = 0b0001;
+        /// Read-only partition
+        const READONLY  = 0b0010;
+    }
+}
+
 /// A single partition definition
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Partition {
@@ -246,19 +277,12 @@ pub struct Partition {
     subtype: SubType,
     offset: u32,
     size: u32,
-    encrypted: bool,
+    flags: Flags,
 }
 
 impl Partition {
     /// Construct a new partition
-    pub fn new<S>(
-        name: S,
-        ty: Type,
-        subtype: SubType,
-        offset: u32,
-        size: u32,
-        encrypted: bool,
-    ) -> Self
+    pub fn new<S>(name: S, ty: Type, subtype: SubType, offset: u32, size: u32, flags: Flags) -> Self
     where
         S: Into<String>,
     {
@@ -268,7 +292,7 @@ impl Partition {
             subtype,
             offset,
             size,
-            encrypted,
+            flags,
         }
     }
 
@@ -297,9 +321,9 @@ impl Partition {
         self.size
     }
 
-    /// Is the partition encrypted?
-    pub fn encrypted(&self) -> bool {
-        self.encrypted
+    /// Return the partition's flags
+    pub fn flags(&self) -> Flags {
+        self.flags
     }
 
     /// Does this partition overlap with another?
@@ -325,7 +349,7 @@ impl Partition {
         }
         writer.write_all(&name_bytes)?;
 
-        writer.write_all(&(self.encrypted as u32).to_le_bytes())?;
+        writer.write_all(&self.flags.bits().to_le_bytes())?;
 
         Ok(())
     }
@@ -335,7 +359,15 @@ impl Partition {
     where
         W: std::io::Write,
     {
-        let flags = if self.encrypted { "encrypted" } else { "" };
+        let mut flags = Vec::<&str>::new();
+        if self.flags.contains(Flags::ENCRYPTED) {
+            flags.push("encrypted");
+        }
+        if self.flags.contains(Flags::READONLY) {
+            flags.push("readonly");
+        }
+
+        let flags = flags.join(":");
 
         csv.write_record(&[
             self.name(),
@@ -343,7 +375,7 @@ impl Partition {
             self.subtype.to_string(),
             format!("{:#x}", self.offset),
             format!("{:#x}", self.size),
-            flags.to_string(),
+            flags,
         ])?;
 
         Ok(())

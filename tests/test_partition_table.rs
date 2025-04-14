@@ -1,6 +1,6 @@
 use std::fs;
 
-use esp_idf_part::{AppType, Error, Partition, PartitionTable, SubType, Type};
+use esp_idf_part::{AppType, Error, Flags, Partition, PartitionTable, SubType, Type};
 
 #[test]
 fn test_parse_bin() {
@@ -23,7 +23,7 @@ fn test_parse_bin() {
     assert_eq!(partitions[3].subtype(), SubType::App(AppType::Factory));
     assert_eq!(partitions[3].offset(), 0x10000);
     assert_eq!(partitions[3].size(), 0x100000);
-    assert_eq!(partitions[3].encrypted(), false);
+    assert_eq!(partitions[3].flags(), Flags::empty());
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn test_parse_csv() {
     assert_eq!(partitions[3].subtype(), SubType::App(AppType::Factory));
     assert_eq!(partitions[3].offset(), 0x10000);
     assert_eq!(partitions[3].size(), 0x100000);
-    assert_eq!(partitions[3].encrypted(), false);
+    assert_eq!(partitions[3].flags(), Flags::empty());
 }
 
 #[test]
@@ -248,7 +248,7 @@ fn test_maximum_partition_size_is_enforced() -> Result<(), String> {
         SubType::App(AppType::Factory),
         0,
         32 * 1024 * 1024, // 32MB, too big!
-        false,
+        Flags::empty(),
     )]);
 
     match table.validate() {

@@ -43,7 +43,7 @@ use serde::{Deserialize, Serialize};
 
 pub use self::{
     error::Error,
-    partition::{AppType, DataType, Partition, SubType, Type},
+    partition::{AppType, DataType, Flags, Partition, SubType, Type},
 };
 use self::{
     hash_writer::HashWriter,
