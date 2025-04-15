@@ -2,17 +2,17 @@ use std::str::FromStr;
 
 use deku::DekuRead;
 use regex::Regex;
-use serde::{de::Error, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de::Error};
 
 use super::{
+    APP_PARTITION_ALIGNMENT,
     AppType,
     DataType,
     Flags,
+    MAX_NAME_LEN,
     Partition,
     SubType,
     Type,
-    APP_PARTITION_ALIGNMENT,
-    MAX_NAME_LEN,
 };
 
 #[derive(Debug, DekuRead)]
@@ -119,7 +119,7 @@ where
     let buf = String::deserialize(deserializer)?;
 
     let bytes = if let Some((idx, _)) = buf.as_str().char_indices().nth(MAX_NAME_LEN) {
-        buf[..idx].as_bytes()
+        &buf.as_bytes()[..idx]
     } else {
         buf.as_bytes()
     };
@@ -234,8 +234,8 @@ where
 #[cfg(test)]
 mod tests {
     use serde::de::{
-        value::{Error as ValueError, StrDeserializer},
         IntoDeserializer,
+        value::{Error as ValueError, StrDeserializer},
     };
 
     use super::*;
